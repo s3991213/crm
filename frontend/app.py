@@ -286,10 +286,11 @@ async def resolve_update(action: cl.Action, confirmed: bool) -> None:
     try:
         fn = api.confirm_update if confirmed else api.cancel_update
         result = await fn(update_id, staff_name())
-    except api.BackendError:
+    except api.BackendError as exc:
         card.props["status"] = "failed"
         await card.update()
         await ask(
+            f"Not saved. {exc.refused}" if exc.refused else
             "I couldn't save that change, so the record has **not** been updated. "
             "Would you like to ask for the change again?"
         )

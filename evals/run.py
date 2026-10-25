@@ -103,7 +103,7 @@ def percentile(values: list[int], p: float) -> int:
     return values[min(len(values) - 1, int(round(p * (len(values) - 1))))] if values else 0
 
 
-def report(model: str, no_think: bool, repeat: int, results: list[list[dict]]) -> str:
+def report(model: str, no_think: bool, repeat: int, results: list[list[dict]], temperature: float = 0.0) -> str:
     by_case = defaultdict(list)
     for run in results:
         for r in run:
@@ -121,7 +121,8 @@ def report(model: str, no_think: bool, repeat: int, results: list[list[dict]]) -
 
     lines = [
         f"# Eval results: `{model}`", "",
-        f"- Date: {date.today().isoformat()} · thinking {'off' if no_think else 'on'} · {len(by_case)} cases × {repeat} run(s)",
+        f"- Date: {date.today().isoformat()} · thinking {'off' if no_think else 'on'} · temperature {temperature:g}"
+        f" · {len(by_case)} cases × {repeat} run(s)",
         f"- **Pass rate: {passed}/{total} ({passed / total:.0%})**"
         + (f" · pass^{repeat} (every run passes): {strict}/{len(by_case)}" if repeat > 1 else ""),
         f"- Latency per request: p50 {percentile(latencies, 0.5) / 1000:.1f}s · p95 {percentile(latencies, 0.95) / 1000:.1f}s",
@@ -148,13 +149,15 @@ async def main() -> None:
     ap.add_argument("--repeat", type=int, default=1)
     ap.add_argument("--only", help="run only cases whose id contains this text")
     ap.add_argument("--think", action="store_true", help="let the model think (slower)")
+    ap.add_argument("--temperature", type=float, default=0.0,
+                    help="sampling temperature; at 0 repeats are near-identical, so use ~0.7 with --repeat")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
     cases = yaml.safe_load((HERE / "cases.yaml").read_text())
     if args.only:
         cases = [c for c in cases if args.only in c["id"]]
-    llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY)
+    llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY, temperature=args.temperature)
     no_think = not args.think
 
     results = []
@@ -169,10 +172,11 @@ async def main() -> None:
                 print("        ", json.dumps(r["reply"])[:300])
         results.append(run)
 
-    md = report(args.model, no_think, args.repeat, results)
+    md = report(args.model, no_think, args.repeat, results, args.temperature)
     out = HERE / "results"
     out.mkdir(exist_ok=True)
-    slug = re.sub(r"[^a-z0-9.]+", "-", args.model.lower()).strip("-") + ("" if no_think else "-think")
+    slug = (re.sub(r"[^a-z0-9.]+", "-", args.model.lower()).strip("-") + ("" if no_think else "-think")
+            + (f"-t{args.temperature:g}" if args.temperature else ""))
     if not args.only:
         (out / f"{slug}.md").write_text(md)
         (out / f"{slug}.json").write_text(json.dumps(results, indent=1))

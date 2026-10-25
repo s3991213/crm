@@ -1,7 +1,7 @@
 """The LLM backend with a scripted fake model: tool routing, safety rules, and the API contract."""
 
 import json
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -113,6 +113,21 @@ def test_confirm_refuses_if_record_changed_since_staging(store):
         store.confirm(second["update_id"], "b")
     assert store.get(liam)["status"] == "Withdrawn"
     assert [a["action"] for a in store.audit_log()] == ["staged", "staged", "confirmed", "conflict"]
+
+
+def test_confirm_refuses_an_old_proposal(store):
+    clock = [datetime(2026, 10, 25, 9, 0)]
+    store.now = lambda: clock[0]
+    liam = store.find("Liam")[0]["id"]
+    old = store.stage(liam, "status", "Withdrawn", "a")
+    fresh = store.stage(liam, "status", "Deferred", "a")
+    clock[0] += timedelta(minutes=61)
+    with pytest.raises(StoreError, match="more than 60 minutes"):
+        store.confirm(old["update_id"], "a")
+    assert store.get(liam)["status"] == "Active"
+    clock[0] = datetime(2026, 10, 25, 9, 59)
+    store.confirm(fresh["update_id"], "a")
+    assert [a["action"] for a in store.audit_log()][-2:] == ["expired", "confirmed"]
 
 
 # --- agent via /chat ---------------------------------------------------------

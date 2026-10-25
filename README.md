@@ -17,9 +17,11 @@ The frontend is deliberately thin. It sends what staff type to the backend and d
 The model chooses *which* tool to call. The code decides what each tool may do:
 
 - Five tools: `find_student`, `get_history`, `list_at_risk`, `stage_update`, `draft_email`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
-- Fields and values are checked against allowed lists, and there's one change per request.
-- A name that matches several students, or none, comes back as a question, never a guess.
-- The reply type comes from what the tools did, not what the model says. A confirm card always carries fixed wording, so the model can't claim "saved".
+- Fields and values are checked against allowed lists. A new email address must be one staff actually typed.
+- One change per request: if the model tries a second, neither is staged and staff are asked.
+- A name that matches several students, or none, comes back as a question, never a guess. A misspelt name gets a "did you mean …?" question. A change is only staged for a student staff have clearly named in the chat ("Priya" isn't enough when there are two).
+- If a reply mentions a student that no tool looked up in that request, the model is told to look them up, so it can't answer from memory.
+- The reply type comes from what the tools did, not what the model says. A confirm card always carries fixed wording, and a reply that claims something was saved or sent, when nothing was staged, is replaced.
 - Email drafts are addressed from the record, never by the model, and are never sent.
 - Student notes are passed as data. The seed data contains a planted prompt injection, and an eval checks it's ignored.
 - Confirm refuses if the record changed after the change was staged (409). Every stage, confirm, cancel and conflict goes to an `audit` table.
@@ -189,7 +191,7 @@ Returns `{"text": "optional intro", "students": [...]}` in the same shape as abo
 
 ### `POST /updates/{update_id}/confirm` and `POST /updates/{update_id}/cancel`
 
-Request: `{"staff_name": "..."}`. Response: `{"ok": true, "text": "optional message"}`. Confirm is the only call that writes to a record. Any non-2xx response is shown to staff as "not saved".
+Request: `{"staff_name": "..."}`. Response: `{"ok": true, "text": "optional message"}`. Confirm is the only call that writes to a record. Any non-2xx response is shown to staff as "not saved". A 409 means the backend refused on purpose (the record changed since the change was proposed, or the proposal is over 60 minutes old), and its `detail` is shown to staff as the reason.
 
 ## Customising the look
 

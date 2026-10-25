@@ -15,9 +15,10 @@ API_TIMEOUT = float(os.getenv("CRM_API_TIMEOUT", "60"))
 class BackendError(Exception):
     """The backend could not be reached or returned an error."""
 
-    def __init__(self, message: str, timed_out: bool = False):
+    def __init__(self, message: str, timed_out: bool = False, refused: str | None = None):
         super().__init__(message)
         self.timed_out = timed_out
+        self.refused = refused  # the backend's reason when it refused the request (409), to show staff
 
 
 async def _request(method: str, path: str, staff_name: str, json: dict | None = None) -> dict:
@@ -27,6 +28,14 @@ async def _request(method: str, path: str, staff_name: str, json: dict | None = 
             response = await client.request(method, path, json=json, headers=headers)
             response.raise_for_status()
             return response.json()
+    except httpx.HTTPStatusError as exc:
+        refused = None
+        if exc.response.status_code == 409:
+            try:
+                refused = str(exc.response.json().get("detail") or "") or None
+            except ValueError:
+                pass
+        raise BackendError(str(exc), refused=refused) from exc
     except httpx.TimeoutException as exc:
         raise BackendError(str(exc), timed_out=True) from exc
     except (httpx.HTTPError, ValueError) as exc:

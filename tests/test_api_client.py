@@ -55,6 +55,20 @@ async def test_unknown_update_is_an_error(mock_backend):
     assert not exc.value.timed_out
 
 
+async def test_refusal_reason_is_kept_for_staff(use_transport):
+    use_transport(httpx.MockTransport(lambda request: httpx.Response(409, json={"detail": "Record changed."})))
+    with pytest.raises(api.BackendError) as exc:
+        await api.confirm_update("u1", "Test Staff")
+    assert exc.value.refused == "Record changed."
+
+
+async def test_other_errors_have_no_refusal_reason(use_transport):
+    use_transport(httpx.MockTransport(lambda request: httpx.Response(409, text="not json")))
+    with pytest.raises(api.BackendError) as exc:
+        await api.confirm_update("u1", "Test Staff")
+    assert exc.value.refused is None
+
+
 async def test_timeout_is_flagged(use_transport):
     def handler(request):
         raise httpx.ReadTimeout("slow", request=request)

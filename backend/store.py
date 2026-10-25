@@ -17,6 +17,8 @@ PAYMENT_STATUSES = ["Paid", "Partial", "Overdue"]
 # Fields staff may change, and the values each accepts (None means free text).
 EDITABLE = {"status": STATUSES, "payment_status": PAYMENT_STATUSES, "course": None, "email": None}
 FIELD_LABELS = {"status": "Status", "payment_status": "Payment status", "course": "Course", "email": "Email"}
+# A proposed change can be confirmed for this long; after that staff ask again, so a forgotten card can't be clicked.
+PENDING_TTL = timedelta(minutes=60)
 
 SCHEMA = """
 create table if not exists students (
@@ -39,8 +41,8 @@ class StoreError(Exception):
 
 
 class Store:
-    def __init__(self, path: str | Path = ":memory:", today=date.today):
-        self.today = today
+    def __init__(self, path: str | Path = ":memory:", today=date.today, now=datetime.now):
+        self.today, self.now = today, now
         self.db = sqlite3.connect(str(path), check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
@@ -149,7 +151,7 @@ class Store:
         update_id = uuid.uuid4().hex
         self.db.execute(
             "insert into pending_updates values (?, ?, ?, ?, ?, ?, ?)",
-            (update_id, student_id, field, s[field], new_value, staff, datetime.now().isoformat(timespec="seconds")),
+            (update_id, student_id, field, s[field], new_value, staff, self.now().isoformat(timespec="seconds")),
         )
         self._audit(staff, "staged", student_id, field, s[field], new_value)
         self.db.commit()
@@ -160,6 +162,11 @@ class Store:
         """Apply a staged change. The only method that writes to a student record."""
         p = self._take_pending(update_id)
         s = self.get(p["student_id"])
+        if self.now() - datetime.fromisoformat(p["staged_at"]) > PENDING_TTL:
+            self._audit(staff, "expired", s["id"], p["field"], p["old_value"], p["new_value"])
+            self.db.commit()
+            raise StoreError(f"This change was proposed more than {PENDING_TTL.seconds // 60} minutes ago, "
+                             "so nothing was saved. Please ask for it again.")
         if s[p["field"]] != p["old_value"]:
             self._audit(staff, "conflict", s["id"], p["field"], s[p["field"]], p["new_value"])
             self.db.commit()
@@ -185,7 +192,7 @@ class Store:
     def _audit(self, staff, action, student_id, field, old, new) -> None:
         self.db.execute(
             "insert into audit (at, staff, action, student_id, field, old_value, new_value) values (?, ?, ?, ?, ?, ?, ?)",
-            (datetime.now().isoformat(timespec="seconds"), staff, action, student_id, field, old, new),
+            (self.now().isoformat(timespec="seconds"), staff, action, student_id, field, old, new),
         )
 
     def audit_log(self) -> list[dict]:
