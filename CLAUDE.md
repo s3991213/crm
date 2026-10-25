@@ -4,6 +4,12 @@ Staff chat frontend (Chainlit, `frontend/`) for a FastAPI CRM backend. `mock_bac
 real backend. The API contract lives in README.md ("Backend API contract"): keep the frontend and the mock in
 line with it.
 
+## Progress log
+@PROGRESS.md
+
+IMPORTANT: after finishing any piece of work, update PROGRESS.md in the same turn: add a short dated entry at
+the top of "Log" and tick, add or remove items in "Up next". Keep entries short; the details belong in git.
+
 ## Commands
 - Python env is the `crmenv` conda environment. `run.sh` finds it itself, so there's no need to activate it.
 - `./run.sh test` runs pytest (args pass through, e.g. `./run.sh test -k auth`). Run it after every change.
