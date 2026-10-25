@@ -44,6 +44,8 @@ CLARIFY_DOWN = (
     "If it keeps happening, please let your manager know."
 )
 PASSWORD_FIRST = "Please choose your new password first. It only takes a moment."
+TOO_MANY_TRIES = "Too many wrong passwords. Please wait a minute and try again."
+MAX_FAILS, LOCK_SECONDS = 5, 60  # per username, so guessing a password takes years, not minutes
 
 write_log = logging.getLogger("crm.writes")
 write_log.setLevel(logging.INFO)
@@ -143,6 +145,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="CRM Assistant (staff)", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+failed_logins: dict[str, list[float]] = {}  # username -> times of recent wrong passwords
 # Staged changes this server showed, by update id: who may confirm them, and what to log when they do.
 pending: dict[str, dict] = {}
 
@@ -158,10 +161,16 @@ async def backend(fn, *args) -> dict:
 
 @app.post("/api/login")
 def login(body: LoginIn, response: Response):
-    name = staff_auth.verify(body.username, body.password)
-    if not name:
-        raise HTTPException(401, "That username and password don't match. Please try again.")
     username = body.username.strip().lower()
+    now = time.time()
+    recent = [t for t in failed_logins.get(username, []) if now - t < LOCK_SECONDS]
+    if len(recent) >= MAX_FAILS:
+        raise HTTPException(429, TOO_MANY_TRIES)
+    name = staff_auth.verify(username, body.password)
+    if not name:
+        failed_logins[username] = recent + [now]
+        raise HTTPException(401, "That username and password don't match. Please try again.")
+    failed_logins.pop(username, None)
     set_session(response, username)
     return {"name": name, "must_change": staff_auth.must_change(username)}
 

@@ -36,6 +36,7 @@ def client(staff_file, backend_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(server, "WRITES_LOG", tmp_path / "writes.log")  # never the real audit log
     server.write_log.handlers.clear()
     server.pending.clear()
+    server.failed_logins.clear()
     staff_auth.set_staff("priya", "Priya Shah", "temporary1")
     with TestClient(server.app) as c:
         yield c
@@ -66,6 +67,17 @@ def test_wrong_password_is_refused(client):
     r = client.post("/api/login", json={"username": "priya", "password": "nope"})
     assert r.status_code == 401
     assert client.get("/api/me").status_code == 401
+
+
+def test_repeated_wrong_passwords_lock_the_username_for_a_minute(client, monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(server.time, "time", lambda: clock[0])
+    for _ in range(server.MAX_FAILS):
+        assert client.post("/api/login", json={"username": "priya", "password": "nope"}).status_code == 401
+    r = client.post("/api/login", json={"username": "Priya", "password": "temporary1"})
+    assert r.status_code == 429 and "wait a minute" in r.json()["detail"]
+    clock[0] += server.LOCK_SECONDS + 1
+    sign_in(client)
 
 
 def test_sign_in_sets_a_strict_http_only_cookie(client):
