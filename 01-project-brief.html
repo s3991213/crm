@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Brief — CRM Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EDF1F5;--paper:#FFFFFF;--ink:#16324F;--ink-soft:#41576E;
+    --muted:#6B7E92;--line:#C9D6E2;--line-soft:#E1E9F0;
+    --accent:#DB8232;--accent-soft:#F6E6D2;--grid:#DCE5EE;--panel:#F3F7FA;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:"Inter",system-ui,sans-serif;color:var(--ink);
+    background-color:var(--bg);
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;line-height:1.65;padding:48px 20px 72px;
+  }
+  .wrap{max-width:800px;margin:0 auto;}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:44px;
+    box-shadow:0 1px 0 rgba(22,50,79,0.04),0 18px 40px -28px rgba(22,50,79,0.35);}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:0.14em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 14px;}
+  h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:clamp(28px,5.5vw,40px);
+    line-height:1.1;letter-spacing:-0.02em;margin:0 0 18px;}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 10px;font-family:"IBM Plex Mono",monospace;
+    font-size:11.5px;color:var(--muted);margin-bottom:8px;}
+  .meta span{background:var(--panel);border:1px solid var(--line-soft);border-radius:20px;padding:4px 11px;letter-spacing:0.04em;}
+  h2{font-family:"Space Grotesk",sans-serif;font-size:19px;font-weight:600;margin:40px 0 12px;
+    display:flex;align-items:center;gap:12px;}
+  h2 .n{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--accent);font-weight:500;}
+  p{margin:0 0 12px;color:var(--ink-soft);}
+  ul{margin:0 0 12px;padding-left:0;list-style:none;}
+  li{position:relative;padding-left:22px;margin-bottom:7px;color:var(--ink-soft);}
+  li::before{content:"";position:absolute;left:2px;top:10px;width:7px;height:7px;
+    border-radius:2px;background:var(--accent);}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
+  .box{background:var(--panel);border:1px solid var(--line-soft);border-radius:11px;padding:18px 20px;}
+  .box h3{font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:600;margin:0 0 10px;color:var(--ink);}
+  .box.out h3{color:var(--muted);}
+  .box li::before{background:var(--muted);}
+  .stack{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .chip{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--accent-soft);
+    color:#9a5716;border-radius:7px;padding:5px 10px;}
+  .phase{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--line-soft);}
+  .phase:first-of-type{border-top:none;}
+  .phase .tag{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--accent);flex-shrink:0;width:64px;padding-top:2px;}
+  .phase div p{margin:0;}
+  .phase h4{font-family:"Space Grotesk",sans-serif;font-size:14.5px;margin:0 0 3px;font-weight:600;}
+  hr{border:none;border-top:1px solid var(--line);margin:44px 0 0;}
+  footer{margin-top:22px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:0.06em;color:var(--muted);text-transform:uppercase;text-align:center;}
+  @media(max-width:640px){.card{padding:26px;}.split{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <p class="eyebrow">Document 1 of 3 · Project Brief</p>
+    <h1>CRM Assistant</h1>
+    <div class="meta">
+      <span>AUTHOR: NIPUNA TENNAKOON</span>
+      <span>STATUS: DRAFT</span>
+      <span>2026</span>
+      <span>VOLUNTEER ENGAGEMENT</span>
+    </div>
+
+    <h2><span class="n">01</span> The problem</h2>
+    <p>Staff spend a large share of their day on repetitive work: looking up student records, writing routine emails, and updating fields by hand. Information about any one student is spread across records, notes, and documents, so answering even a simple question means digging through the system manually. This is slow, and it means students who need attention can slip through unnoticed.</p>
+
+    <h2><span class="n">02</span> The solution</h2>
+    <p>An assistant built into the CRM that staff operate in plain English. A staff member types what they need, and the assistant retrieves the right records, summarises a student's history, drafts a message, flags students at risk of dropping out, or updates a record on request. It runs entirely on local hardware, so student data never leaves the office.</p>
+
+    <h2><span class="n">03</span> Objectives</h2>
+    <ul>
+      <li>Cut the time staff spend on manual lookups and routine writing</li>
+      <li>Surface at-risk students and cooling leads earlier, before they are lost</li>
+      <li>Keep all student data on the organisation's own machines</li>
+      <li>Stay reliable and accurate enough to be trusted in daily use</li>
+    </ul>
+
+    <h2><span class="n">04</span> Who it is for</h2>
+    <p>Front-desk, admin, and student-support staff. The people using it are not technical, so every interaction happens in plain language with no query syntax or forms to learn.</p>
+
+    <h2><span class="n">05</span> Scope</h2>
+    <div class="split">
+      <div class="box">
+        <h3>In scope</h3>
+        <ul>
+          <li>Five staff actions: query, summarise, draft, flag, update</li>
+          <li>A small predictive model for at-risk detection</li>
+          <li>An evaluation harness to measure accuracy</li>
+          <li>A realistic mock CRM database to build against</li>
+        </ul>
+      </div>
+      <div class="box out">
+        <h3>Out of scope (for now)</h3>
+        <ul>
+          <li>Live production data on day one</li>
+          <li>Sending emails automatically without human review</li>
+          <li>Document scanning and image reading</li>
+          <li>Changes to the existing CRM's core software</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2><span class="n">06</span> Success criteria</h2>
+    <ul>
+      <li>Common lookups can be completed in a single plain-English request</li>
+      <li>At-risk flags line up with what actually happened in past records</li>
+      <li>Measured accuracy on a fixed test set stays above an agreed threshold</li>
+      <li>The whole system runs comfortably within 24GB of memory on local hardware</li>
+    </ul>
+
+    <h2><span class="n">07</span> Phased plan</h2>
+    <div class="phase">
+      <div class="tag">PHASE 1</div>
+      <div><h4>Retrieval and Q&amp;A</h4><p>Staff can ask questions and get answers pulled from records and policy documents.</p></div>
+    </div>
+    <div class="phase">
+      <div class="tag">PHASE 2</div>
+      <div><h4>Actions and predictions</h4><p>Add summarising, email drafting, record updates, and the at-risk model.</p></div>
+    </div>
+    <div class="phase">
+      <div class="tag">PHASE 3</div>
+      <div><h4>Evaluation and hardening</h4><p>Build the accuracy test harness and tighten reliability before wider use.</p></div>
+    </div>
+
+    <h2><span class="n">08</span> Technology</h2>
+    <div class="stack">
+      <span class="chip">Python</span><span class="chip">FastAPI</span><span class="chip">ChromaDB</span>
+      <span class="chip">sentence-transformers</span><span class="chip">Qwen3-14B (LM Studio / Ollama)</span>
+      <span class="chip">FastMCP</span><span class="chip">SQLite</span><span class="chip">scikit-learn</span>
+    </div>
+
+    <hr>
+    <footer>Project Brief · CRM Assistant · Page 1 of the project doc set</footer>
+  </div>
+</div>
+</body>
+</html>

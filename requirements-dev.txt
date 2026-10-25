@@ -1,0 +1,3 @@
+-r frontend/requirements.txt
+-r mock_backend/requirements.txt
+pytest>=8

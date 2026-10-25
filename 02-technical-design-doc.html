@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical Design Doc — CRM Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EDF1F5;--paper:#FFFFFF;--ink:#16324F;--ink-soft:#41576E;
+    --muted:#6B7E92;--line:#C9D6E2;--line-soft:#E1E9F0;
+    --accent:#DB8232;--accent-soft:#F6E6D2;--grid:#DCE5EE;--panel:#F3F7FA;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:"Inter",system-ui,sans-serif;color:var(--ink);
+    background-color:var(--bg);
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;line-height:1.65;padding:48px 20px 72px;
+  }
+  .wrap{max-width:800px;margin:0 auto;}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:44px;
+    box-shadow:0 1px 0 rgba(22,50,79,0.04),0 18px 40px -28px rgba(22,50,79,0.35);}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:0.14em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 14px;}
+  h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:clamp(28px,5.5vw,40px);
+    line-height:1.1;letter-spacing:-0.02em;margin:0 0 18px;}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 10px;font-family:"IBM Plex Mono",monospace;
+    font-size:11.5px;color:var(--muted);margin-bottom:8px;}
+  .meta span{background:var(--panel);border:1px solid var(--line-soft);border-radius:20px;padding:4px 11px;letter-spacing:0.04em;}
+  h2{font-family:"Space Grotesk",sans-serif;font-size:19px;font-weight:600;margin:42px 0 12px;
+    display:flex;align-items:center;gap:12px;}
+  h2 .n{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--accent);font-weight:500;}
+  h3{font-family:"Space Grotesk",sans-serif;font-size:15px;font-weight:600;margin:20px 0 6px;}
+  p{margin:0 0 12px;color:var(--ink-soft);}
+  ul{margin:0 0 12px;padding-left:0;list-style:none;}
+  li{position:relative;padding-left:22px;margin-bottom:7px;color:var(--ink-soft);}
+  li::before{content:"";position:absolute;left:2px;top:10px;width:7px;height:7px;border-radius:2px;background:var(--accent);}
+  code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--panel);
+    border:1px solid var(--line-soft);border-radius:5px;padding:1px 6px;color:var(--ink);}
+  .decision{background:var(--accent-soft);border:1px solid #eaca9f;border-radius:12px;padding:22px 24px;margin:8px 0 12px;}
+  .decision h3{margin-top:0;color:#8a4e14;}
+  .decision p{color:#6d4a22;}
+  .steps{counter-reset:s;padding:0;list-style:none;margin:0 0 12px;}
+  .steps li{counter-increment:s;padding-left:40px;margin-bottom:12px;}
+  .steps li::before{content:counter(s);top:0;left:0;width:26px;height:26px;border-radius:7px;
+    background:var(--ink);color:#fff;font-family:"IBM Plex Mono",monospace;font-size:13px;
+    display:flex;align-items:center;justify-content:center;}
+  table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:13.5px;}
+  th,td{text-align:left;padding:10px 12px;border:1px solid var(--line-soft);vertical-align:top;}
+  th{background:var(--panel);font-family:"Space Grotesk",sans-serif;font-weight:600;color:var(--ink);font-size:13px;}
+  td{color:var(--ink-soft);}
+  td code{font-size:12px;}
+  .comp{border:1px solid var(--line-soft);border-radius:11px;padding:14px 18px;margin-bottom:10px;background:var(--panel);}
+  .comp h3{margin:0 0 4px;}
+  .comp .role{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);
+    text-transform:uppercase;letter-spacing:0.08em;}
+  .comp p{margin:4px 0 0;font-size:13.5px;}
+  .risk{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;margin-bottom:8px;}
+  .risk div{padding:12px 16px;}
+  .risk .r{background:var(--panel);border-right:1px solid var(--line-soft);font-weight:500;color:var(--ink);}
+  .risk .m{color:var(--ink-soft);font-size:13.5px;}
+  hr{border:none;border-top:1px solid var(--line);margin:44px 0 0;}
+  footer{margin-top:22px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:0.06em;color:var(--muted);text-transform:uppercase;text-align:center;}
+  @media(max-width:640px){.card{padding:26px;}.risk{grid-template-columns:1fr;}.risk .r{border-right:none;border-bottom:1px solid var(--line-soft);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <p class="eyebrow">Document 2 of 3 · Technical Design</p>
+    <h1>CRM Assistant: Technical Design</h1>
+    <div class="meta">
+      <span>AUTHOR: NIPUNA TENNAKOON</span>
+      <span>STATUS: DRAFT</span>
+      <span>2026</span>
+      <span>TARGET: LOCAL, 24GB</span>
+    </div>
+
+    <h2><span class="n">01</span> Overview</h2>
+    <p>The assistant lets non-technical staff operate the CRM in plain English. The hard constraint driving every decision below is that it must run entirely on local hardware (an Apple M5 with 24GB of memory) and stay reliable enough for daily use. That constraint rules out the most fashionable design, and points at a sturdier one.</p>
+
+    <h2><span class="n">02</span> Key design decision</h2>
+    <div class="decision">
+      <h3>A constrained pipeline, not an autonomous agent</h3>
+      <p>The obvious design is an agent that freely decides which tools to chain. Local models in the 14B range get unreliable at open-ended multi-step tool loops, and that unreliability compounds with every step. Instead, the language model is used only at the two edges where it is strong: understanding the request, and writing the reply. The decision-making in the middle is deterministic Python, not model reasoning. The tradeoff is less open-ended flexibility, bought back as reliability, explainability, and a system that actually runs well on the target hardware.</p>
+    </div>
+
+    <h2><span class="n">03</span> Components</h2>
+    <div class="comp"><span class="role">Application layer</span><h3>FastAPI</h3><p>Receives the staff request and returns the response. Thin entry point.</p></div>
+    <div class="comp"><span class="role">Smart edge · in</span><h3>Intent extraction (LLM)</h3><p>One constrained call. The model reads the request and returns structured JSON: which action is wanted, plus its parameters. Output is enforced with a JSON schema so it cannot return a malformed tool call.</p></div>
+    <div class="comp"><span class="role">Deterministic core</span><h3>Router / orchestrator (Python)</h3><p>Takes the structured intent and runs the matching function. No model in this step, so no compounding errors.</p></div>
+    <div class="comp"><span class="role">Tool layer · FastMCP</span><h3>Retrieval, database, prediction</h3><p>Hybrid retrieval (ChromaDB with sentence-transformers embeddings and a cross-encoder reranker) over records and policy docs; direct SQLite queries for structured data; the at-risk classifier for predictions.</p></div>
+    <div class="comp"><span class="role">Smart edge · out</span><h3>Response generation (LLM)</h3><p>One call. Turns the retrieved data into a clean answer, summary, or draft email. This is plain summarising, which the local model handles easily.</p></div>
+
+    <h2><span class="n">04</span> Request flow</h2>
+    <ul class="steps">
+      <li>Staff member types a request in plain English into the CRM.</li>
+      <li>Intent extraction returns structured JSON: action plus parameters, schema-enforced.</li>
+      <li>The router runs the matching deterministic function.</li>
+      <li>The tool layer fetches records, runs a query, or scores the at-risk model.</li>
+      <li>Response generation turns the result into a readable answer or draft.</li>
+      <li>Any action that writes to a record is shown to the staff member to confirm before it is saved.</li>
+    </ul>
+
+    <h2><span class="n">05</span> Data model (mock CRM)</h2>
+    <p>Development starts against a realistic mock SQLite schema, so the whole system can be built without waiting on production data or access. The real schema is swapped in later.</p>
+    <table>
+      <tr><th>Table</th><th>Holds</th><th>Key fields</th></tr>
+      <tr><td><code>students</code></td><td>Core student records</td><td>id, name, country, status</td></tr>
+      <tr><td><code>interactions</code></td><td>Notes, emails, calls</td><td>student_id, type, date, summary</td></tr>
+      <tr><td><code>enrolments</code></td><td>Course sign-ups</td><td>student_id, course, start, payment_status</td></tr>
+      <tr><td><code>documents</code></td><td>Policy and course text for retrieval</td><td>title, body, embedding</td></tr>
+    </table>
+
+    <h2><span class="n">06</span> At-risk model</h2>
+    <p>This is deliberately a real predictive model, not the language model guessing. A small <code>scikit-learn</code> classifier (gradient boosting or logistic regression) is trained on features such as days since last contact, attendance, payment status, and engagement. It is deterministic, explainable, fast, and easy to validate against history, which makes it a stronger and more trustworthy feature than an LLM opinion.</p>
+
+    <h2><span class="n">07</span> Evaluation</h2>
+    <p>A golden dataset of known-correct answers is assembled, and the two language-model steps are scored against it, using an LLM-as-judge for open-ended outputs and exact checks for structured ones. This runs as a development-time gate to catch regressions before anything ships. It is also the part that makes the whole system safe to trust day to day.</p>
+
+    <h2><span class="n">08</span> Local deployment</h2>
+    <ul>
+      <li>Language model: Qwen3-14B (or Qwen2.5-14B-Instruct) served by LM Studio or Ollama.</li>
+      <li>Embeddings: sentence-transformers (bge-small or bge-base) on Apple MPS.</li>
+      <li>Reranker: a bge cross-encoder, light enough to run alongside.</li>
+      <li>Everything fits within 24GB with room to spare; nothing requires the cloud.</li>
+    </ul>
+
+    <h2><span class="n">09</span> Risks and mitigations</h2>
+    <div class="risk"><div class="r">Local model produces a bad tool call</div><div class="m">JSON-schema constrained output plus the eval harness catch it early.</div></div>
+    <div class="risk"><div class="r">No production data on day one</div><div class="m">Build against a mock schema; swap in the real one later.</div></div>
+    <div class="risk"><div class="r">Wrong or unwanted record update</div><div class="m">Every write is confirmed by a human before it is saved.</div></div>
+    <div class="risk"><div class="r">Memory pressure on 24GB</div><div class="m">14B model plus light embedding and rerank models stay within budget.</div></div>
+
+    <hr>
+    <footer>Technical Design · CRM Assistant · Page 2 of the project doc set</footer>
+  </div>
+</div>
+</body>
+</html>

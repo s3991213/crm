@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Start the CRM Assistant.
+#
+#   ./run.sh              backend (mock) + frontend
+#   ./run.sh backend      mock backend only
+#   ./run.sh frontend     frontend only (point CRM_API_BASE_URL in frontend/.env at your backend)
+#   ./run.sh add-staff <username> "<Full Name>"
+#   ./run.sh test         run the test suite (extra args go to pytest)
+#
+# Ports can be changed with BACKEND_PORT=8000 FRONTEND_PORT=8080 ./run.sh
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+FRONTEND_PORT="${FRONTEND_PORT:-8080}"
+HOST="${HOST:-127.0.0.1}"   # use HOST=0.0.0.0 to open the frontend to the office network
+
+# Find the crmenv conda environment
+CONDA_BASE="$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")"
+ENV_BIN="$CONDA_BASE/envs/crmenv/bin"
+if [[ ! -x "$ENV_BIN/python" ]]; then
+  echo "Can't find the 'crmenv' conda environment at $ENV_BIN."
+  echo "Create it with:  conda create -n crmenv python=3.12 -y"
+  exit 1
+fi
+
+run_backend() {
+  echo "Backend  → http://localhost:$BACKEND_PORT"
+  cd "$ROOT/mock_backend"
+  exec "$ENV_BIN/uvicorn" main:app --port "$BACKEND_PORT"
+}
+
+check_frontend() {
+  cd "$ROOT/frontend"
+  if [[ ! -f .env ]]; then
+    echo "frontend/.env is missing. Copy frontend/.env.example to frontend/.env and fill it in."
+    exit 1
+  fi
+  if [[ ! -s staff.json ]] || [[ "$(tr -d '[:space:]' < staff.json)" == "{}" ]]; then
+    echo "No staff logins yet. Let's create the first one."
+    if [[ ! -t 0 ]]; then
+      echo "Run:  ./run.sh add-staff <username> \"<Full Name>\""
+      exit 1
+    fi
+    read -rp "Username (e.g. priya): " username
+    read -rp "Full name (e.g. Priya Shah): " fullname
+    if [[ -z "$username" || -z "$fullname" ]]; then
+      echo "Both are needed. Nothing was created."
+      exit 1
+    fi
+    "$ENV_BIN/python" add_staff.py "$username" "$fullname" || exit 1
+    echo
+  fi
+}
+
+run_frontend() {
+  cd "$ROOT/frontend"
+  echo "Frontend → http://localhost:$FRONTEND_PORT"
+  exec "$ENV_BIN/chainlit" run app.py --headless --host "$HOST" --port "$FRONTEND_PORT"
+}
+
+case "${1:-all}" in
+  backend)
+    run_backend
+    ;;
+  frontend)
+    check_frontend
+    run_frontend
+    ;;
+  all)
+    check_frontend
+    (run_backend) &
+    BACKEND_PID=$!
+    # Stop the backend and wait for it, so its shutdown messages don't land after the prompt
+    trap 'kill $BACKEND_PID 2>/dev/null; wait $BACKEND_PID 2>/dev/null' EXIT INT TERM
+    sleep 1
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+      echo "Backend failed to start (is port $BACKEND_PORT already in use?)."
+      exit 1
+    fi
+    (run_frontend)
+    ;;
+  add-staff)
+    shift
+    cd "$ROOT/frontend"
+    exec "$ENV_BIN/python" add_staff.py "$@"
+    ;;
+  test)
+    shift
+    cd "$ROOT"
+    exec "$ENV_BIN/python" -m pytest "$@"
+    ;;
+  *)
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1
+    ;;
+esac

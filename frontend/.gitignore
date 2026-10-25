@@ -1,0 +1,5 @@
+.env
+staff.json
+logs/
+.files/
+__pycache__/

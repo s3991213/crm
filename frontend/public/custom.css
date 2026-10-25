@@ -1,0 +1,242 @@
+/* CRM Assistant: calm, readable, one accent colour (teal). Colours come from theme.json. */
+
+:root {
+  --crm-good: 145 55% 30%;
+  --crm-good-bg: 145 45% 94%;
+  --crm-warn: 32 85% 32%;
+  --crm-warn-bg: 40 90% 93%;
+  --crm-bad: 0 62% 42%;
+  --crm-bad-bg: 0 75% 96%;
+}
+
+html { font-size: 16px; }
+
+body {
+  background: hsl(var(--background));
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Things staff never need */
+#theme-toggle,
+#readme-button,
+.watermark,
+a[href*="chainlit.io"] { display: none !important; }
+
+/* Messages: generous spacing, readable size */
+.message-content,
+.prose { font-size: 1rem; line-height: 1.65; }
+
+#chat-input,
+#chat-input textarea { font-size: 1rem !important; }
+
+#message-composer {
+  border-radius: 14px;
+  box-shadow: 0 1px 2px hsl(215 25% 17% / 0.06), 0 4px 16px hsl(215 25% 17% / 0.05);
+}
+
+/* Welcome screen starters */
+#starters { gap: 0.75rem; }
+#starters button {
+  font-size: 0.95rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: hsl(var(--card));
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+#starters button:hover {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--secondary));
+}
+
+/* Action buttons (Confirm / Cancel) */
+button[id^="action-"],
+.message-actions button {
+  font-size: 0.95rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+}
+button[id="action-confirm_update"] {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* ---------- Shared card ---------- */
+.crm-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin: 0.25rem 0 0.5rem;
+  max-width: 640px;
+  box-shadow: 0 1px 2px hsl(215 25% 17% / 0.04);
+  color: hsl(var(--card-foreground));
+}
+.crm-card--flush { padding: 0; overflow: hidden; max-width: 760px; }
+
+.crm-pill {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+.crm-pill--good { background: hsl(var(--crm-good-bg)); color: hsl(var(--crm-good)); }
+.crm-pill--warn { background: hsl(var(--crm-warn-bg)); color: hsl(var(--crm-warn)); }
+.crm-pill--bad  { background: hsl(var(--crm-bad-bg));  color: hsl(var(--crm-bad)); }
+
+.crm-footnote {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+}
+
+/* ---------- Student card ---------- */
+.crm-card__head { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem; }
+.crm-avatar {
+  flex: none;
+  width: 2.75rem; height: 2.75rem;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: hsl(var(--secondary));
+  color: hsl(var(--primary));
+  font-weight: 600; font-size: 1.15rem;
+}
+.crm-card__title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.crm-card__name { font-size: 1.15rem; font-weight: 600; }
+
+.crm-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border));
+}
+.crm-fact dt {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.2rem;
+}
+.crm-fact dd { margin: 0; font-weight: 500; }
+
+/* ---------- At-risk table ---------- */
+.crm-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.crm-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  padding: 0.75rem 1rem;
+}
+.crm-table td {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid hsl(var(--border));
+  vertical-align: top;
+}
+.crm-table tbody tr:hover { background: hsl(var(--secondary) / 0.5); }
+.crm-card--flush .crm-footnote { padding: 0.75rem 1rem; border-top: 1px solid hsl(var(--border)); }
+
+.crm-link {
+  font: inherit;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: none; border: 0; padding: 0;
+  cursor: pointer; text-align: left;
+}
+.crm-link:hover { text-decoration: underline; }
+
+.crm-risk { display: flex; align-items: center; gap: 0.5rem; }
+.crm-risk__num { font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); }
+
+.crm-reasons { margin: 0; padding-left: 1.1rem; }
+.crm-reasons li + li { margin-top: 0.2rem; }
+
+/* ---------- Email draft ---------- */
+.crm-draft__label {
+  font-size: 0.85rem; font-weight: 600;
+  color: hsl(var(--primary));
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-bottom: 0.85rem;
+}
+.crm-field { display: block; margin-bottom: 0.85rem; }
+.crm-field span {
+  display: block;
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.3rem;
+}
+.crm-field input,
+.crm-field textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--input));
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+.crm-field textarea { resize: vertical; min-height: 12rem; }
+.crm-field input:focus,
+.crm-field textarea:focus {
+  outline: 2px solid hsl(var(--ring) / 0.35);
+  border-color: hsl(var(--ring));
+}
+.crm-draft__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.crm-btn { gap: 0.4rem; font-size: 0.95rem; min-height: 2.5rem; }
+
+/* ---------- Change password ---------- */
+.crm-password { max-width: 420px; }
+.crm-password .crm-draft__label { display: flex; align-items: center; gap: 0.4rem; }
+.crm-password__error { margin-bottom: 0.85rem; }
+
+/* ---------- Confirmation card ---------- */
+.crm-confirm--pending { border-color: hsl(var(--primary) / 0.45); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08); }
+.crm-confirm__row { display: flex; gap: 1rem; padding: 0.2rem 0; }
+.crm-confirm__key { width: 5.5rem; flex: none; color: hsl(var(--muted-foreground)); font-size: 0.9rem; }
+.crm-confirm__val { font-weight: 600; }
+
+.crm-change {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+  margin: 0.85rem 0;
+  padding: 0.85rem 1rem;
+  background: hsl(var(--muted));
+  border-radius: 10px;
+}
+.crm-change__old { color: hsl(var(--muted-foreground)); text-decoration: line-through; }
+.crm-change__arrow { color: hsl(var(--muted-foreground)); flex: none; }
+.crm-change__new { font-weight: 600; color: hsl(var(--primary)); }
+
+.crm-status {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.9rem;
+  color: hsl(var(--muted-foreground));
+}
+.crm-status--pending { color: hsl(var(--primary)); }
+.crm-status--good { color: hsl(var(--crm-good)); }
+.crm-status--bad { color: hsl(var(--crm-bad)); }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 640px) {
+  .crm-card { padding: 1rem; }
+  .crm-facts { grid-template-columns: 1fr; gap: 0.75rem; }
+
+  /* Table becomes stacked cards */
+  .crm-table thead { display: none; }
+  .crm-table, .crm-table tbody, .crm-table tr, .crm-table td { display: block; width: 100%; }
+  .crm-table tr { padding: 0.75rem 1rem; border-top: 1px solid hsl(var(--border)); }
+  .crm-table tr:first-child { border-top: 0; }
+  .crm-table td { border: 0; padding: 0.2rem 0; }
+  .crm-table td[data-label="Main reasons"] { margin-top: 0.3rem; color: hsl(var(--muted-foreground)); }
+
+  #starters { grid-template-columns: 1fr 1fr; }
+}
