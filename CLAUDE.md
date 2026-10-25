@@ -1,6 +1,6 @@
 # CRM Assistant
 
-Staff chat frontend (Chainlit, `frontend/`) for a FastAPI backend (`backend/`) where a tool-calling LLM works over
+Staff chat frontend (`frontend/`: FastAPI `server.py` for sign-in/sessions/proxy + React/TypeScript/Vite UI in `ui/`) for a FastAPI backend (`backend/`) where a tool-calling LLM works over
 SQLite records. `mock_backend/` is a keyword stand-in. The API contract lives in README.md ("Backend API contract"):
 keep the frontend, backend and mock in line with it. The plan for the backend is in PLAN.md.
 
@@ -31,7 +31,9 @@ the top of "Log" and tick, add or remove items in "Up next". Keep entries short;
 - Staff-facing text is plain, friendly English with no jargon. When unsure, ask a short question instead of guessing.
 
 ## Testing notes
-- `app.py` needs a Chainlit context and has no unit tests; check UI changes with `./run.sh` and a screenshot.
+- `tests/test_server.py` covers the staff server (sessions, password rules, proxying) against the mock.
+- UI logic that maps replies to cards is in `ui/src/reply.ts` (vitest: `cd frontend/ui && npm test`). Check visual
+  changes in a browser with a screenshot; `./run.sh` rebuilds the UI when its source changes (needs Node.js).
 - `tests/test_backend.py` drives the agent with a scripted `FakeLLM`: no model needed.
 - Tests reset the mock's in-memory `STUDENTS`/`PENDING` and point `staff_auth.STAFF_FILE` at a temp file
   (see `tests/conftest.py`).

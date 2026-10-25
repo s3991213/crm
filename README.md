@@ -5,12 +5,14 @@ A plain-English chat assistant for front-desk and admin staff. A tool-calling LL
 ```
 backend/         FastAPI + tool-calling LLM agent over SQLite (the real backend)
 evals/           Eval suite: realistic staff requests, scored per category, with latency
-frontend/        Chainlit app (what staff use)
+frontend/        Staff web app: FastAPI server (sign-in, sessions, proxy) + React/TypeScript UI in ui/
 mock_backend/    Keyword-matching stand-in, for UI work without a model
 tests/           pytest suite (no model needed)
 ```
 
 The frontend is deliberately thin. It sends what staff type to the backend and decides how to *show* the reply. It never decides anything about records.
+
+The browser only talks to the staff server (`frontend/server.py`), never to the CRM backend. The server signs staff in, attaches their name to every backend call from their session (the browser can't choose it), and only lets the person who asked for a change confirm it.
 
 ## How the backend keeps the model safe
 
@@ -74,14 +76,13 @@ cp backend/.env.example backend/.env   # set LLM_MODEL to the id LM Studio shows
 
 The database is created and seeded from `backend/seed.json` on first run at `backend/data/crm.db`. Delete that file to reset it.
 
-**Frontend.**
-
-Create `frontend/.env` from the example and fill it in:
+**Frontend.** The staff app needs [Node.js](https://nodejs.org) to build its UI (`run.sh` builds it the first time and
+whenever the UI's source changes). Create `frontend/.env` from the example and fill it in:
 
 ```bash
 cd frontend
 cp .env.example .env
-chainlit create-secret      # paste the printed CHAINLIT_AUTH_SECRET into .env
+python -c 'import secrets; print(secrets.token_hex(32))'   # paste into CRM_SESSION_SECRET in .env
 chmod 600 .env              # only your user account can read the secret
 ```
 
@@ -89,7 +90,10 @@ chmod 600 .env              # only your user account can read the secret
 |---|---|
 | `CRM_API_BASE_URL` | Where the FastAPI backend runs, e.g. `http://localhost:8000` |
 | `CRM_API_TIMEOUT` | Seconds to wait before asking staff to retry (default 60) |
-| `CHAINLIT_AUTH_SECRET` | Signs login sessions. Keep it private. |
+| `CRM_SESSION_SECRET` | Signs login sessions. Keep it private. (An older `.env` with `CHAINLIT_AUTH_SECRET` still works.) |
+| `CRM_HTTPS` | `1` when served over https, so the session cookie is only sent encrypted |
+
+Sessions are a signed, HttpOnly, SameSite=Strict cookie that lasts 12 hours (one working day).
 
 ### Staff logins
 
@@ -110,7 +114,7 @@ Removing or resetting a login, or the person changing their own password, ends t
 2. Enter the **username** (e.g. `priya`, not the full name) and the temporary password you gave them.
 3. The first time, the app asks them to choose their own password before they can do anything else. After that they sign in with their own password.
 
-Staff can change their password any time by typing **"change my password"** in the chat. The password form talks only to the Chainlit server: the password never appears in the chat history and is never sent to the CRM backend.
+Staff can change their password any time by typing **"change my password"** in the chat. The password form talks only to the staff server: the password never appears in the chat history and is never sent to the CRM backend.
 
 ## Running
 
@@ -139,9 +143,12 @@ cd mock_backend && uvicorn main:app --port 8000   # or the mock
 **2. Frontend**
 
 ```bash
-cd frontend
-chainlit run app.py --port 8080
+cd frontend/ui && npm ci && npm run build && cd ..   # after any UI change
+uvicorn server:app --port 8080
 ```
+
+While working on the UI, `./run.sh ui-dev` serves it with hot reload on http://localhost:5173 (run `./run.sh frontend`
+alongside; `/api` is passed through to it). `cd frontend/ui && npm test` runs the UI tests.
 
 Open http://localhost:8080 and sign in. To let other computers in the office use it, run with `--host 0.0.0.0` and share `http://<this-computer's-IP>:8080`.
 
@@ -195,7 +202,6 @@ Request: `{"staff_name": "..."}`. Response: `{"ok": true, "text": "optional mess
 
 ## Customising the look
 
-- `frontend/.chainlit/config.toml`: app name, light theme, hidden extras (file upload, message editing, step details)
-- `frontend/public/theme.json`: colours (one teal accent) and font (Inter)
-- `frontend/public/custom.css`: spacing, 16px base size, card and table styles, mobile layout
-- `frontend/public/elements/*.jsx`: the student card, at-risk table, email draft and confirmation card
+- `frontend/ui/src/styles.css`: colours (one teal accent, set at the top), Inter font (bundled, so it works offline), 16px base size, card and table styles, mobile layout
+- `frontend/ui/src/cards.tsx`: the student card, at-risk table, email draft, confirmation card and password form
+- `frontend/ui/src/App.tsx`: sign-in, the welcome screen and its starter buttons, and the chat

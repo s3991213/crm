@@ -5,9 +5,11 @@
 #   ./run.sh backend      backend only
 #   ./run.sh frontend     frontend only (point CRM_API_BASE_URL in frontend/.env at your backend)
 #   ./run.sh add-staff <username> "<Full Name>"
-#   ./run.sh test         run the test suite (extra args go to pytest)
+#   ./run.sh test         run the test suite (extra args go to pytest; with none, the UI tests run too)
 #   ./run.sh evals        run the LLM evals (needs LM Studio; extra args go to evals/run.py)
+#   ./run.sh ui-dev       hot-reloading UI on :5173 while working on frontend/ui (run `frontend` alongside)
 #
+# The staff app (frontend/ui, React) is built automatically when its source changes; that needs Node.js.
 # The backend is the LLM one in backend/ (model set in backend/.env). BACKEND=mock uses the keyword mock instead.
 # Ports can be changed with BACKEND_PORT=8000 FRONTEND_PORT=8080 ./run.sh
 
@@ -65,10 +67,26 @@ check_frontend() {
   fi
 }
 
+build_ui() {
+  # Rebuild the React app when it's missing or older than its source.
+  cd "$ROOT/frontend/ui"
+  if [[ -f dist/index.html ]] && [[ -z "$(find src index.html package.json -newer dist/index.html | head -1)" ]]; then
+    return
+  fi
+  if ! command -v npm >/dev/null; then
+    echo "The staff app needs building, which needs Node.js (https://nodejs.org)."
+    exit 1
+  fi
+  echo "Building the staff app…"
+  [[ -d node_modules ]] || npm ci --no-audit --no-fund
+  npm run build --silent
+}
+
 run_frontend() {
+  build_ui
   cd "$ROOT/frontend"
   echo "Frontend → http://localhost:$FRONTEND_PORT"
-  exec "$ENV_BIN/chainlit" run app.py --headless --host "$HOST" --port "$FRONTEND_PORT"
+  exec "$ENV_BIN/uvicorn" server:app --host "$HOST" --port "$FRONTEND_PORT"
 }
 
 case "${1:-all}" in
@@ -100,7 +118,17 @@ case "${1:-all}" in
   test)
     shift
     cd "$ROOT"
-    exec "$ENV_BIN/python" -m pytest "$@"
+    "$ENV_BIN/python" -m pytest "$@"
+    # With no arguments, the UI's own tests run too
+    if [[ $# -eq 0 && -d frontend/ui/node_modules ]]; then
+      cd frontend/ui && npm test --silent
+    fi
+    ;;
+  ui-dev)
+    # Hot-reloading UI on :5173; start the staff server in another terminal with ./run.sh frontend
+    cd "$ROOT/frontend/ui"
+    [[ -d node_modules ]] || npm ci --no-audit --no-fund
+    exec npm run dev
     ;;
   evals)
     shift
@@ -108,7 +136,7 @@ case "${1:-all}" in
     exec "$ENV_BIN/python" -m evals.run "$@"
     ;;
   *)
-    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
