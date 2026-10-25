@@ -20,5 +20,11 @@ __pycache__/
 CLAUDE.md
 PROGRESS.md
 
-# Backend database
+# Databases (records, chat memory, staff server state)
 backend/data/
+frontend/data/
+
+# Browser test output
+frontend/ui/test-results/
+frontend/ui/playwright-report/
+college_db/out/

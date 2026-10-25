@@ -14,6 +14,10 @@ the top of "Log" and tick, add or remove items in "Up next". Keep entries short;
 - Python env is the `crmenv` conda environment. `run.sh` finds it itself, so there's no need to activate it.
 - `./run.sh test` runs pytest (args pass through, e.g. `./run.sh test -k auth`). Run it after every change.
 - `./run.sh` starts the LLM backend (:8000) + frontend (:8080); `BACKEND=mock ./run.sh` for no model. Don't leave it running.
+- `./run.sh e2e` runs the Playwright browser test (`frontend/ui/e2e/`) against the mock, with throwaway logins.
+  Run it after UI or `server.py` changes. CI (`.github/workflows/ci.yml`) runs pytest, vitest, the build and e2e.
+- `./run.sh make-data` builds the synthetic college DB (`college_db/`, MySQL schema) and `backend/data/crm-synthetic.db`
+  from it (`backend/source_import.py`). Run the app on it with `CRM_DB=backend/data/crm-synthetic.db ./run.sh`.
 - `./run.sh evals [--only <id>] [--model <id>]` runs the LLM evals against LM Studio (localhost:1234). They're slow
   (~10-20 s per case), so use `--only` while iterating. After changing the prompt, tools or `store.py`,
   run the full suite and commit `evals/results/`.
@@ -32,6 +36,8 @@ the top of "Log" and tick, add or remove items in "Up next". Keep entries short;
 
 ## Testing notes
 - `tests/test_server.py` covers the staff server (sessions, password rules, proxying) against the mock.
+  Its sessions, waiting changes and sign-in lockouts live in `frontend/data/state.db` (`state.py`); chat memory
+  lives in the backend's `crm.db` (`conversations` table).
 - UI logic that maps replies to cards is in `ui/src/reply.ts` (vitest: `cd frontend/ui && npm test`). Check visual
   changes in a browser with a screenshot; `./run.sh` rebuilds the UI when its source changes (needs Node.js).
 - `tests/test_backend.py` drives the agent with a scripted `FakeLLM`: no model needed.

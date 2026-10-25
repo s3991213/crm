@@ -12,6 +12,7 @@ import api
 import main
 import server
 import staff_auth
+import state
 
 POST_JSON = {"Content-Type": "application/json"}
 
@@ -35,8 +36,7 @@ def client(staff_file, backend_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(server, "UI_DIR", tmp_path / "dist")
     monkeypatch.setattr(server, "WRITES_LOG", tmp_path / "writes.log")  # never the real audit log
     server.write_log.handlers.clear()
-    server.pending.clear()
-    server.failed_logins.clear()
+    monkeypatch.setattr(state, "STATE_DB", tmp_path / "state.db")
     staff_auth.set_staff("priya", "Priya Shah", "temporary1")
     with TestClient(server.app) as c:
         yield c
@@ -108,6 +108,28 @@ def test_logout_clears_the_session(client):
     assert client.get("/api/me").status_code == 401
 
 
+def test_logout_ends_the_session_on_the_server_too(client):
+    sign_in(client)
+    copied = client.cookies.get(server.COOKIE)
+    client.post("/api/logout")
+    client.cookies.set(server.COOKIE, copied)
+    assert client.get("/api/me").status_code == 401
+
+
+def test_logout_leaves_other_sessions_signed_in(client):
+    sign_in(client)
+    other = TestClient(server.app)
+    sign_in(other)
+    client.post("/api/logout")
+    assert other.get("/api/me").status_code == 200
+
+
+def test_cookie_from_before_session_ids_is_refused(client):
+    body = json.dumps({"u": "priya", "v": staff_auth.session_version("priya"), "exp": 10**11}).encode()
+    client.cookies.set(server.COOKIE, server.base64.urlsafe_b64encode(body).decode() + "." + server._sign(body))
+    assert client.get("/api/me").status_code == 401
+
+
 # --- passwords -------------------------------------------------------------------
 
 def test_chat_waits_for_the_first_password_change(client, backend_calls):
@@ -176,6 +198,16 @@ def test_confirm_writes_the_log_once(client, caplog):
     assert "student='Arjun Patel'" in caplog.text and "staff='Priya Shah'" in caplog.text
     again = client.post(f"/api/updates/{update['update_id']}/confirm")
     assert again.status_code == 404 and "already been handled" in again.json()["detail"]
+
+
+def test_waiting_change_and_session_survive_a_restart(client):
+    ready(client)
+    update = say(client, "change Arjun's status to Withdrawn").json()["update"]
+    cookies = dict(client.cookies)
+    client.__exit__(None, None, None)  # the server shuts down...
+    with TestClient(server.app, cookies=cookies) as again:  # ...and starts again, from state.db alone
+        assert again.get("/api/me").status_code == 200
+        assert again.post(f"/api/updates/{update['update_id']}/confirm").status_code == 200
 
 
 def test_cancel_does_not_log_a_write(client, caplog):

@@ -19,6 +19,8 @@ EDITABLE = {"status": STATUSES, "payment_status": PAYMENT_STATUSES, "course": No
 FIELD_LABELS = {"status": "Status", "payment_status": "Payment status", "course": "Course", "email": "Email"}
 # A proposed change can be confirmed for this long; after that staff ask again, so a forgotten card can't be clicked.
 PENDING_TTL = timedelta(minutes=60)
+# Chat memory is kept this long after the last message, so a restart doesn't make the assistant forget.
+CONVERSATION_TTL = timedelta(days=1)
 
 SCHEMA = """
 create table if not exists students (
@@ -32,6 +34,9 @@ create table if not exists pending_updates (
 create table if not exists audit (
     id integer primary key autoincrement, at text, staff text, action text,
     student_id integer, field text, old_value text, new_value text
+);
+create table if not exists conversations (
+    session_id text primary key, messages text not null, updated_at text not null
 );
 """
 
@@ -52,15 +57,20 @@ class Store:
     def seed_if_empty(self, seed_file: str | Path) -> None:
         if self.db.execute("select count(*) from students").fetchone()[0]:
             return
-        for s in json.loads(Path(seed_file).read_text()):
-            last_contact = (self.today() - timedelta(days=s["last_contact_days_ago"])).isoformat()
-            self.db.execute(
-                "insert into students (name, status, course, email, payment_status, attendance, last_contact, history)"
-                " values (?, ?, ?, ?, ?, ?, ?, ?)",
-                (s["name"], s["status"], s["course"], s["email"], s["payment_status"], s["attendance"],
-                 last_contact, s["history"]),
-            )
+        self.load_students([
+            {**s, "last_contact": (self.today() - timedelta(days=s["last_contact_days_ago"])).isoformat()}
+            for s in json.loads(Path(seed_file).read_text())])
+
+    def load_students(self, rows: list[dict]) -> int:
+        """Fill an empty students table, from the seed file or an import. Never touches existing records."""
+        if self.db.execute("select count(*) from students").fetchone()[0]:
+            raise StoreError("The students table already has records, so nothing was loaded.")
+        self.db.executemany(
+            "insert into students (id, name, status, course, email, payment_status, attendance, last_contact, history)"
+            " values (:id, :name, :status, :course, :email, :payment_status, :attendance, :last_contact, :history)",
+            [{"id": None, **r} for r in rows])
         self.db.commit()
+        return len(rows)
 
     # --- reads -------------------------------------------------------------
 
@@ -194,6 +204,20 @@ class Store:
             "insert into audit (at, staff, action, student_id, field, old_value, new_value) values (?, ?, ?, ?, ?, ?, ?)",
             (self.now().isoformat(timespec="seconds"), staff, action, student_id, field, old, new),
         )
+
+    # --- chat memory (not student records) --------------------------------
+
+    def conversation(self, session_id: str) -> list[dict]:
+        row = self.db.execute("select messages from conversations where session_id = ?", (session_id,)).fetchone()
+        return json.loads(row[0]) if row else []
+
+    def save_conversation(self, session_id: str, messages: list[dict]) -> None:
+        now = self.now()
+        self.db.execute("delete from conversations where updated_at < ?",
+                        ((now - CONVERSATION_TTL).isoformat(timespec="seconds"),))
+        self.db.execute("insert or replace into conversations values (?, ?, ?)",
+                        (session_id, json.dumps(messages), now.isoformat(timespec="seconds")))
+        self.db.commit()
 
     def audit_log(self) -> list[dict]:
         return [dict(r) for r in self.db.execute("select * from audit order by id")]

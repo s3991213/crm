@@ -120,12 +120,11 @@ class Agent:
         self.system_suffix = system_suffix
         self.llm = llm
         self.max_steps = max_steps
-        self.sessions: dict[str, list[dict]] = {}
 
     async def run(self, message: str, staff: str, session_id: str) -> tuple[dict, Trace]:
         start = time.perf_counter()
         trace = Trace(getattr(self.llm, "model", "?"), session_id, staff, message)
-        history = self.sessions.setdefault(session_id, [])
+        history = self.store.conversation(session_id)
         reply = Reply(said=" ".join([m["content"] for m in history if m["role"] == "user"] + [message]))
         system = SYSTEM_PROMPT + f"\nThe staff member you are helping is {staff}." + self.system_suffix
         messages = [{"role": "system", "content": system}, *history, {"role": "user", "content": message}]
@@ -160,7 +159,7 @@ class Agent:
 
         self._finish(reply)
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": reply.text}]
-        del history[:-2 * HISTORY_TURNS]
+        self.store.save_conversation(session_id, history[-2 * HISTORY_TURNS:])
         trace.reply_type = reply.type
         trace.ms = round((time.perf_counter() - start) * 1000)
         return reply.as_dict(), trace
@@ -185,20 +184,26 @@ class Agent:
 
     def _ungrounded(self, reply: Reply) -> list[str]:
         """Students named in the reply text that no tool returned in this request: the model is going from memory."""
-        seen, text, out = " ".join(reply.seen), reply.text.lower(), []
+        seen, text, out = " ".join(reply.seen), reply.text, []
         for s in self.store.all_students():
-            words = [s["name"].lower(), *s["name"].lower().split()]
-            if any(re.search(rf"\b{re.escape(w)}\b", text) for w in words) and not any(w in seen for w in words):
+            # Capitalised and 3+ letters, so "I can mark that" doesn't mention Mark Santos, nor "le" Minh Le.
+            words = [s["name"], *(part for part in s["name"].split() if len(part) >= 3)]
+            if (any(re.search(rf"\b{re.escape(w)}\b", text) for w in words)
+                    and not any(w.lower() in seen for w in words)):
                 out.append(s["name"])
         return out
 
     def _named_by_staff(self, student: dict, said: str) -> bool:
-        """Staff typed (or nearly typed) a part of this student's name that no other student shares."""
-        words = {w[:-2] if w.endswith("'s") else w for w in re.findall(r"[a-z][a-z']*", said.lower().replace("’", "'"))}
-        others = {part for o in self.store.all_students() if o["id"] != student["id"] for part in o["name"].lower().split()}
+        """Staff typed (or nearly typed) a part of this student's name that no other student shares,
+        or their whole name when each part is shared (another Liam, another Nguyen) but the name isn't."""
+        words = {w[:-2] if w.endswith("'s") else w for w in re.findall(r"[a-z][a-z'-]*", said.lower().replace("’", "'"))}
+        others = [o["name"].lower() for o in self.store.all_students() if o["id"] != student["id"]]
+        shared = {part for name in others for part in name.split()}
+        parts = student["name"].lower().split()
         def typed(part):  # short names must match exactly: "tom" is too close to "to"
             return part in words if len(part) <= 4 else bool(difflib.get_close_matches(part, words, n=1, cutoff=0.75))
-        return any(part not in others and typed(part) for part in student["name"].lower().split())
+        return (any(part not in shared and typed(part) for part in parts)
+                or (" ".join(parts) not in others and all(typed(part) for part in parts)))
 
     def _resolve(self, args: dict, reply: Reply) -> dict | str:
         """The one student `name` refers to, or an error for the model to turn into a question."""
@@ -216,8 +221,9 @@ class Agent:
             return f"No student matches '{name}'. Ask staff to check the name."
         if len(matches) > 1:
             reply.needs_clarifying = True
-            return (f"Several students match '{name}': {', '.join(m['name'] for m in matches)}. "
-                    "Ask staff which one they mean.")
+            names = [m["name"] for m in matches]
+            listed = ", ".join(names[:10]) + (f" and {len(names) - 10} more" if len(names) > 10 else "")
+            return f"Several students match '{name}': {listed}. Ask staff which one they mean."
         reply.needs_clarifying = False  # a later, more precise call succeeded
         return matches[0]
 

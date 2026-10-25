@@ -6,6 +6,8 @@
 #   ./run.sh frontend     frontend only (point CRM_API_BASE_URL in frontend/.env at your backend)
 #   ./run.sh add-staff <username> "<Full Name>"
 #   ./run.sh test         run the test suite (extra args go to pytest; with none, the UI tests run too)
+#   ./run.sh e2e          browser test of the staff app against the mock backend (extra args go to Playwright)
+#   ./run.sh make-data    synthetic college database (600 students; --students N) and an assistant database from it
 #   ./run.sh evals        run the LLM evals (needs LM Studio; extra args go to evals/run.py)
 #   ./run.sh ui-dev       hot-reloading UI on :5173 while working on frontend/ui (run `frontend` alongside)
 #
@@ -124,11 +126,23 @@ case "${1:-all}" in
       cd frontend/ui && npm test --silent
     fi
     ;;
+  e2e)
+    shift
+    build_ui
+    # Downloads the headless browser the first time only
+    npx playwright install --only-shell chromium >/dev/null
+    PYTHON="$ENV_BIN/python" exec npx playwright test "$@"
+    ;;
   ui-dev)
     # Hot-reloading UI on :5173; start the staff server in another terminal with ./run.sh frontend
     cd "$ROOT/frontend/ui"
     [[ -d node_modules ]] || npm ci --no-audit --no-fund
     exec npm run dev
+    ;;
+  make-data)
+    shift
+    cd "$ROOT"
+    exec "$ENV_BIN/python" -m college_db.generate --crm-db backend/data/crm-synthetic.db "$@"
     ;;
   evals)
     shift
@@ -136,7 +150,7 @@ case "${1:-all}" in
     exec "$ENV_BIN/python" -m evals.run "$@"
     ;;
   *)
-    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac

@@ -29,6 +29,7 @@ from pydantic import BaseModel  # noqa: E402
 
 import api  # noqa: E402
 import staff_auth  # noqa: E402
+import state  # noqa: E402
 
 COOKIE = "crm_session"
 SESSION_HOURS = 12  # staff sign in once per working day (shared front-desk PCs)
@@ -59,20 +60,21 @@ def _open_write_log() -> None:
         write_log.addHandler(handler)
 
 
-# --- sessions: a signed cookie holding the username and login version ---------
+# --- sessions: a signed cookie holding the username, login version and session id ---
+# The session id must still be open in state.db, so signing out ends it on the server too.
 
 def _sign(data: bytes) -> str:
     return hmac.new(SECRET.encode(), data, hashlib.sha256).hexdigest()
 
 
 def make_cookie(username: str) -> str:
+    expires = int(time.time()) + SESSION_HOURS * 3600
     body = json.dumps({"u": username, "v": staff_auth.session_version(username),
-                       "exp": int(time.time()) + SESSION_HOURS * 3600}).encode()
+                       "s": state.new_session(username, expires), "exp": expires}).encode()
     return base64.urlsafe_b64encode(body).decode() + "." + _sign(body)
 
 
-def read_cookie(value: str | None) -> str | None:
-    """The username in a valid, unexpired cookie whose login hasn't been reset or changed since."""
+def _cookie_data(value: str | None) -> dict | None:
     try:
         encoded, sig = (value or "").rsplit(".", 1)
         body = base64.urlsafe_b64decode(encoded.encode())
@@ -80,10 +82,22 @@ def read_cookie(value: str | None) -> str | None:
         return None
     if not hmac.compare_digest(sig, _sign(body)):
         return None
-    data = json.loads(body)
-    if data["exp"] < time.time() or not staff_auth.is_current(data["u"], data["v"]):
+    return json.loads(body)
+
+
+def read_cookie(value: str | None) -> str | None:
+    """The username in a valid, unexpired, not signed-out cookie whose login hasn't been reset or changed since."""
+    data = _cookie_data(value)
+    if (not data or data["exp"] < time.time() or not staff_auth.is_current(data["u"], data["v"])
+            or not state.session_open(data.get("s", ""), data["u"])):
         return None
     return data["u"]
+
+
+def end_session(request: Request) -> None:
+    data = _cookie_data(request.cookies.get(COOKIE))
+    if data and data.get("s"):
+        state.end_session(data["s"])
 
 
 def set_session(response: Response, username: str) -> None:
@@ -145,9 +159,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="CRM Assistant (staff)", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
-failed_logins: dict[str, list[float]] = {}  # username -> times of recent wrong passwords
-# Staged changes this server showed, by update id: who may confirm them, and what to log when they do.
-pending: dict[str, dict] = {}
 
 
 async def backend(fn, *args) -> dict:
@@ -163,20 +174,20 @@ async def backend(fn, *args) -> dict:
 def login(body: LoginIn, response: Response):
     username = body.username.strip().lower()
     now = time.time()
-    recent = [t for t in failed_logins.get(username, []) if now - t < LOCK_SECONDS]
-    if len(recent) >= MAX_FAILS:
+    if state.recent_failures(username, since=now - LOCK_SECONDS) >= MAX_FAILS:
         raise HTTPException(429, TOO_MANY_TRIES)
     name = staff_auth.verify(username, body.password)
     if not name:
-        failed_logins[username] = recent + [now]
+        state.add_failure(username, now)
         raise HTTPException(401, "That username and password don't match. Please try again.")
-    failed_logins.pop(username, None)
+    state.clear_failures(username)
     set_session(response, username)
     return {"name": name, "must_change": staff_auth.must_change(username)}
 
 
 @app.post("/api/logout")
-def logout(response: Response):
+def logout(request: Request, response: Response):
+    end_session(request)
     response.delete_cookie(COOKIE)
     return {"ok": True}
 
@@ -195,6 +206,7 @@ def change_password(body: PasswordIn, request: Request, response: Response):
                                          body.new, body.confirm)
     if problem:
         raise HTTPException(400, problem)
+    end_session(request)
     set_session(response, staff.username)  # every other session ends; this one carries on
     write_log.info("staff=%r changed their password", staff.name)
     return {"ok": True}
@@ -212,7 +224,7 @@ async def chat(body: ChatIn, request: Request):
     reply = await backend(api.chat, text, staff.name, session_id)
     update = reply.get("update")
     if reply.get("type") == "confirm_update" and update and update.get("update_id"):
-        pending[update["update_id"]] = {"username": staff.username, "update": update}
+        state.add_pending(update["update_id"], staff.username, update)
     return reply
 
 
@@ -224,14 +236,12 @@ async def at_risk(request: Request):
 
 async def resolve(update_id: str, request: Request, confirmed: bool) -> dict:
     staff = ready_staff(request)
-    entry = pending.get(update_id)
-    if not entry or entry["username"] != staff.username:
+    u = state.take_pending(update_id, staff.username)  # first: a double click can't save twice
+    if not u:
         raise HTTPException(404, "That change has already been handled.")
-    del pending[update_id]  # first: a double click can't save twice
     fn = api.confirm_update if confirmed else api.cancel_update
     result = await backend(fn, update_id, staff.name)
     if confirmed:
-        u = entry["update"]
         write_log.info("staff=%r student=%r field=%r old=%r new=%r update_id=%s", staff.name,
                        u.get("student_name"), u.get("field"), u.get("old_value"), u.get("new_value"), update_id)
     return {"ok": True, "text": result.get("text") or ("Saved." if confirmed else "Cancelled. Nothing was changed.")}

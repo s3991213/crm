@@ -4,6 +4,7 @@ A plain-English chat assistant for front-desk and admin staff. A tool-calling LL
 
 ```
 backend/         FastAPI + tool-calling LLM agent over SQLite (the real backend)
+college_db/      The college's student database: MySQL schema + synthetic data generator
 evals/           Eval suite: realistic staff requests, scored per category, with latency
 frontend/        Staff web app: FastAPI server (sign-in, sessions, proxy) + React/TypeScript UI in ui/
 mock_backend/    Keyword-matching stand-in, for UI work without a model
@@ -30,6 +31,35 @@ The model chooses *which* tool to call. The code decides what each tool may do:
 - Each request is traced to `backend/logs/traces.jsonl`: model, LLM calls (ms, tokens), tool calls (args, ok, ms).
 
 Risk scores come from transparent rules in `backend/store.py` (days since contact, payment, attendance), not from the model.
+
+## The college's student database (synthetic for now)
+
+The college's real records will come from its own MySQL database. Until we have access, `college_db/` models one:
+
+- `schema.sql`: 10 tables that run unchanged on MySQL 8 and SQLite. The fields follow what an Australian
+  college with international students (CRICOS) has to keep, and what education agents' CRMs track:
+  - `students`: personal and contact details, passport, USI (vocational students), address, emergency contact,
+    and the agent who referred them.
+  - `enrolments`: course, CoE number, offer, start and end dates, status, attendance %, course progress,
+    counsellor. Attendance and progress are what the ESOS National Code (Standard 8) says must be monitored.
+  - `visas` (subclass 500), `health_cover` (OSHC), `english_tests` (IELTS, PTE…), `education_history`.
+  - `fee_instalments` (term-by-term tuition, what's paid and when), `contact_notes` (dated staff notes).
+  - `agents` (agency, country, commission) and `courses` (national code, CRICOS code, length, fees).
+- `generate.py` makes as many students as you ask for (600 by default), with realistic names for 15 source
+  countries plus domestic students, pathway students (English course, then a diploma), deferrals, withdrawals,
+  late payers, low attendance with warning letters, and two planted prompt injections. All of it is made up.
+  The same `--seed` gives the same data.
+- `backend/source_import.py` turns those tables into the assistant's one-row-per-student `crm.db`.
+  It only runs SELECTs, and gives identical results from MySQL (via PyMySQL) and SQLite.
+
+```bash
+./run.sh make-data                                   # college_db/out/college.sql + .db, backend/data/crm-synthetic.db
+./run.sh make-data --students 2000 --seed 7          # bigger, different data
+CRM_DB=backend/data/crm-synthetic.db ./run.sh        # use the assistant on the 600 students
+mysql -u <user> -p <database> < college_db/out/college.sql   # load it into MySQL
+```
+
+The evals keep using the 12 hand-written students in `backend/seed.json`, since their cases name them.
 
 ## Evals
 
@@ -127,6 +157,7 @@ The quickest way is `run.sh` from the project folder (no need to activate the en
 BACKEND=mock ./run.sh                   # keyword mock instead of the LLM (no model needed)
 ./run.sh frontend                       # frontend only, e.g. against the real backend
 ./run.sh test                           # run the tests (needs: pip install -r requirements-dev.txt)
+./run.sh e2e                            # browser test against the mock backend (needs Node.js)
 ```
 
 Ports and host can be changed: `BACKEND_PORT=8001 FRONTEND_PORT=9000 HOST=0.0.0.0 ./run.sh`.

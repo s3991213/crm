@@ -217,6 +217,25 @@ def test_change_needs_a_student_staff_clearly_named(store, traces):
     assert chat(client, "Priya Kapoor")["update"]["student_name"] == "Priya Kapoor"
 
 
+def test_full_name_counts_when_each_part_is_shared(store, traces):
+    # With hundreds of students, both "Liam" and "Nguyen" belong to others too.
+    for name in ("Liam Kapoor", "Arjun Nguyen"):
+        store.db.execute("insert into students (name, status, course, email, payment_status, attendance, last_contact,"
+                         " history) values (?, 'Active', 'X', 'x@example.com', 'Paid', 90, '2026-10-20', '')", (name,))
+    client, _ = client_for(store, [call("stage_update", name="Liam Nguyen", field="status", new_value="Deferred")], "",
+                           [call("stage_update", name="Liam Nguyen", field="status", new_value="Deferred")], "")
+    assert chat(client, "change Liam Nguyen's status to Deferred")["update"]["student_name"] == "Liam Nguyen"
+    assert "update" not in chat(client, "change Liam's status to Deferred", session="s2")
+
+
+def test_hyphenated_names_count_as_named(store, traces):
+    for name in ("Jae-won Park", "Jae-won Cho", "Min-jun Park"):
+        store.db.execute("insert into students (name, status, course, email, payment_status, attendance, last_contact,"
+                         " history) values (?, 'Active', 'X', 'x@example.com', 'Paid', 90, '2026-10-20', '')", (name,))
+    client, _ = client_for(store, [call("stage_update", name="Jae-won Park", field="status", new_value="Deferred")], "")
+    assert chat(client, "change Jae-won Park's status to Deferred")["update"]["student_name"] == "Jae-won Park"
+
+
 def test_short_words_do_not_name_a_student(store, traces):
     client, _ = client_for(store, [call("stage_update", name="Tom Becker", field="status", new_value="Withdrawn")], "")
     assert "update" not in chat(client, "change the status to Withdrawn")
@@ -245,6 +264,24 @@ def test_answer_from_memory_twice_is_replaced(store, traces):
     client, _ = client_for(store, "Mei is doing IT.", "Mei is still doing IT.")
     data = chat(client, "and what about Mei?")
     assert data["type"] == "clarify" and "IT" not in data["text"]
+
+
+def test_ordinary_words_are_not_student_names(store, traces):
+    store.db.execute("insert into students (name, status, course, email, payment_status, attendance, last_contact,"
+                     " history) values ('Mark Santos', 'Active', 'X', 'm@example.com', 'Paid', 90, '2026-10-20', '')")
+    client, llm = client_for(store, "Sure, I can mark that as done.")
+    assert chat(client, "thanks")["text"] == "Sure, I can mark that as done."
+    assert len(llm.seen) == 1
+
+
+def test_long_lists_of_matches_are_cut_short(store, traces):
+    for i in range(15):
+        store.db.execute("insert into students (name, status, course, email, payment_status, attendance, last_contact,"
+                         " history) values (?, 'Active', 'X', 'x@example.com', 'Paid', 90, '2026-10-20', '')",
+                         (f"Student{i} Nguyen",))
+    client, llm = client_for(store, [call("find_student", name="Nguyen")], "Which one?")
+    chat(client, "find Nguyen")
+    assert "and 6 more" in json.loads(llm.seen[1][-1]["content"])["error"]
 
 
 def test_names_from_tool_results_need_no_nudge(store, traces):
@@ -338,6 +375,24 @@ def test_session_history_is_kept_and_trimmed(store, traces):
     chat_b, llm_b = client_for(store, "ok")
     chat(chat_b, "hello", session="b")
     assert len(llm_b.seen[0]) == 2
+
+
+def test_session_history_survives_a_restart(tmp_path, traces):
+    before = Store(tmp_path / "crm.db")
+    before.seed_if_empty(SEED)
+    chat(client_for(before, "ok")[0], "find Liam", session="a")
+    client, llm = client_for(Store(tmp_path / "crm.db"), "ok")  # a new process on the same database
+    chat(client, "and his course?", session="a")
+    assert [m["content"] for m in llm.seen[0][1:]] == ["find Liam", "ok", "and his course?"]
+
+
+def test_old_session_history_is_dropped(store):
+    clock = [datetime(2026, 10, 25, 9)]
+    store.now = lambda: clock[0]
+    store.save_conversation("a", [{"role": "user", "content": "hi"}])
+    clock[0] += timedelta(days=2)
+    store.save_conversation("b", [])
+    assert store.conversation("a") == []
 
 
 def test_llm_down_is_503(store, traces):
