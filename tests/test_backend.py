@@ -171,8 +171,44 @@ def test_only_one_change_per_request(store, traces):
         call("stage_update", name="Sofia", field="status", new_value="Withdrawn"),
     ], "")
     data = chat(client, "withdraw Liam and Sofia")
-    assert data["update"]["student_name"] == "Liam Nguyen"
-    assert store.db.execute("select count(*) from pending_updates").fetchone()[0] == 1
+    assert data["type"] == "clarify" and "update" not in data
+    assert store.db.execute("select count(*) from pending_updates").fetchone()[0] == 0
+    assert [a["action"] for a in store.audit_log()] == ["staged", "cancelled"]
+
+
+def test_invented_email_is_refused(store, traces):
+    client, llm = client_for(store, [call("stage_update", name="Omar", field="email", new_value="omar.smith@college.edu")],
+                             "What should Omar's new email address be?")
+    data = chat(client, "rename Omar to Omar Smith")
+    assert data["type"] == "clarify" and "update" not in data
+    assert "make up" in json.loads(llm.seen[1][-1]["content"])["error"]
+
+
+def test_typed_email_is_staged_even_from_an_earlier_turn(store, traces):
+    client, _ = client_for(store, "Which student is that for?",
+                           [call("stage_update", name="Mei", field="email", new_value="Mei@Chen.net")], "")
+    chat(client, "the new email is mei@chen.net")
+    assert chat(client, "it's for Mei Chen")["update"]["new_value"] == "Mei@Chen.net"
+
+
+def test_answer_from_memory_gets_one_nudge_to_use_a_tool(store, traces):
+    client, llm = client_for(store, "Mei Chen is doing IT and owes fees.",
+                             [call("find_student", name="Mei Chen")], "Mei Chen is doing the Diploma of Marketing.")
+    data = chat(client, "and what about Mei?")
+    assert data["type"] == "answer" and data["student"]["name"] == "Mei Chen"
+    assert "Mei Chen" in llm.seen[1][-1]["content"] and llm.seen[1][-1]["role"] == "user"
+
+
+def test_answer_from_memory_twice_is_replaced(store, traces):
+    client, _ = client_for(store, "Mei is doing IT.", "Mei is still doing IT.")
+    data = chat(client, "and what about Mei?")
+    assert data["type"] == "clarify" and "IT" not in data["text"]
+
+
+def test_names_from_tool_results_need_no_nudge(store, traces):
+    client, llm = client_for(store, [call("find_student", name="Arjn")], "Did you mean Arjun Patel?")
+    assert chat(client, "find Arjn")["type"] == "clarify"
+    assert len(llm.seen) == 2
 
 
 def test_ambiguous_name_asks(store, traces):
@@ -182,6 +218,22 @@ def test_ambiguous_name_asks(store, traces):
     assert "student" not in data
     tool_result = json.loads(llm.seen[1][-1]["content"])
     assert "Priya Sharma" in tool_result["error"] and "Priya Kapoor" in tool_result["error"]
+
+
+def test_suggest_offers_close_names_only(store):
+    assert store.suggest("Arjn") == ["Arjun Patel"]
+    assert store.suggest("Hanna Sato") == ["Hana Sato"]
+    assert set(store.suggest("Prya")) == {"Priya Sharma", "Priya Kapoor"}
+    assert store.suggest("Zoe Williams") == []
+
+
+def test_misspelt_name_asks_with_suggestion_and_stages_nothing(store, traces):
+    client, llm = client_for(store, [call("stage_update", name="Arjn", field="status", new_value="Withdrawn")],
+                             "Did you mean Arjun Patel?")
+    data = chat(client, "withdraw Arjn")
+    assert data["type"] == "clarify" and "update" not in data
+    assert "Arjun Patel" in json.loads(llm.seen[1][-1]["content"])["error"]
+    assert store.db.execute("select count(*) from pending_updates").fetchone()[0] == 0
 
 
 def test_retry_with_precise_name_clears_clarify(store, traces):

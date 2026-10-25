@@ -4,6 +4,7 @@ Nothing here is called by the model directly: the agent's tools go through
 these methods, and only `confirm()` changes a student record.
 """
 
+import difflib
 import json
 import sqlite3
 import uuid
@@ -74,6 +75,19 @@ class Store:
         if exact:
             return exact
         return [r for r in rows if query in r["name"].lower() or words & set(r["name"].lower().split())]
+
+    def suggest(self, name: str, limit: int = 3) -> list[str]:
+        """Names close to a misspelt `name`, best first. Only ever offered as a question, never used."""
+        words = [w[:-2] if w.endswith(("'s", "’s")) else w for w in name.lower().split()]
+        query = " ".join(words)
+        scored = []
+        for r in self.all_students():
+            full = r["name"].lower()
+            parts = [full, *full.split()]
+            score = max(difflib.SequenceMatcher(None, w, part).ratio() for w in [query, *words] for part in parts)
+            if score >= 0.75:
+                scored.append((score, r["name"]))
+        return [n for _, n in sorted(scored, key=lambda t: -t[0])[:limit]]
 
     def all_students(self) -> list[dict]:
         return [dict(r) for r in self.db.execute("select * from students order by id")]
