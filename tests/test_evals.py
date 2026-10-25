@@ -7,7 +7,8 @@ import yaml
 from evals.run import check
 
 CASES = yaml.safe_load((Path(__file__).parent.parent / "evals" / "cases.yaml").read_text())
-KEYS = {"type", "student", "tools", "not_tools", "update", "draft_to", "draft_to_not", "update_count_max", "text_has"}
+KEYS = {"type", "student", "tools", "not_tools", "update", "draft_to", "draft_to_not", "update_count_max", "text_has",
+        "no_saved_claim"}
 
 
 def test_cases_are_well_formed():

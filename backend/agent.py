@@ -5,6 +5,7 @@ do. Tools only read records or stage a change: writing needs a staff click on
 Confirm (see Store.confirm), so no model output can save anything.
 """
 
+import difflib
 import json
 import re
 import time
@@ -67,6 +68,12 @@ TOOLS = [
 
 CONFIRM_TEXT = "Please check this change. Nothing is saved until you click **Confirm**."
 UNGROUNDED_TEXT = "Sorry, I couldn't check that record just now. Could you ask again with the student's name?"
+NOTHING_SAVED_TEXT = ("Nothing has been saved or sent. Email drafts are for you to copy and send yourself, "
+                      "and a change is only saved when you click **Confirm** on it.")
+# A reply saying it has just saved or sent something, when this request staged nothing: never true.
+# Present tense only, so a history summary like "an email was sent in May" is left alone.
+SAVED_CLAIM = re.compile(r"\b(has been|have been|is now|I've|I have)\s+(now\s+|successfully\s+)?"
+                         r"(saved|sent|updated|changed|submitted)\b", re.I)
 GROUNDING_NUDGE = ("(Message from the CRM system, not from staff.) Your reply mentions {names} without looking "
                    "them up in this request. Use a tool to check the record, then answer again.")
 HISTORY_TURNS = 6
@@ -185,6 +192,14 @@ class Agent:
                 out.append(s["name"])
         return out
 
+    def _named_by_staff(self, student: dict, said: str) -> bool:
+        """Staff typed (or nearly typed) a part of this student's name that no other student shares."""
+        words = {w[:-2] if w.endswith("'s") else w for w in re.findall(r"[a-z][a-z']*", said.lower().replace("’", "'"))}
+        others = {part for o in self.store.all_students() if o["id"] != student["id"] for part in o["name"].lower().split()}
+        def typed(part):  # short names must match exactly: "tom" is too close to "to"
+            return part in words if len(part) <= 4 else bool(difflib.get_close_matches(part, words, n=1, cutoff=0.75))
+        return any(part not in others and typed(part) for part in student["name"].lower().split())
+
     def _resolve(self, args: dict, reply: Reply) -> dict | str:
         """The one student `name` refers to, or an error for the model to turn into a question."""
         name = str(args.get("name", "")).strip()
@@ -236,6 +251,10 @@ class Agent:
         s = self._resolve(args, reply)
         if isinstance(s, str):
             return {"error": s}
+        if not self._named_by_staff(s, reply.said):
+            reply.needs_clarifying = True
+            return {"error": f"Staff haven't clearly named {s['name']} in this chat, and a change needs that. "
+                             "Ask staff which student they mean, by full name."}
         field_name = str(args.get("field", "")).strip().lower().replace(" ", "_")
         new_value = str(args.get("new_value", "")).strip()
         if field_name == "email" and new_value.lower() not in reply.said.lower():
@@ -276,6 +295,8 @@ class Agent:
             reply.student = None
         else:
             reply.type = "answer"
+        if reply.type != "confirm_update" and SAVED_CLAIM.search(reply.text):
+            reply.text = NOTHING_SAVED_TEXT
         if not reply.text:
             reply.text = "Sorry, I'm not sure what you need. Could you say it another way?"
             if reply.type == "answer" and reply.student is None:

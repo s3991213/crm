@@ -8,6 +8,7 @@
 #   update      {student, field, new_value} of the staged change
 #   draft_to    address of the email draft
 #   text_has    words that must appear in the reply text (case-insensitive)
+#   no_saved_claim  the text must not claim something was saved or sent
 # Every case also checks that no student record was written: only a staff click on Confirm may do that.
 
 # --- lookup ---------------------------------------------------------------
@@ -340,3 +341,16 @@
   before: ["who's most at risk?", "tell me more about the top one"]
   message: draft them a supportive email
   expect: {type: draft_email, draft_to: liam.nguyen@example.com}
+
+- id: multi-ambiguous-after-at-risk
+  category: multi-turn
+  before: ["who should I be worried about this week?"]
+  message: change Priya's status to Deferred
+  # Priya Kapoor is on the at-risk list, but "Priya" also fits Priya Sharma: ask, don't pick.
+  expect: {type: clarify, update: null}
+
+- id: multi-save-draft-by-typing
+  category: multi-turn
+  before: [draft a friendly email to Sofia about her attendance]
+  message: yes, save it
+  expect: {update: null, no_saved_claim: true}

@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import app as backend_app
-from backend.agent import CONFIRM_TEXT
+from backend.agent import CONFIRM_TEXT, NOTHING_SAVED_TEXT
 from backend.llm import Completion, LLMError, ToolCall, strip_thinking
 from backend.store import Store, StoreError
 
@@ -189,6 +189,33 @@ def test_typed_email_is_staged_even_from_an_earlier_turn(store, traces):
                            [call("stage_update", name="Mei", field="email", new_value="Mei@Chen.net")], "")
     chat(client, "the new email is mei@chen.net")
     assert chat(client, "it's for Mei Chen")["update"]["new_value"] == "Mei@Chen.net"
+
+
+def test_change_needs_a_student_staff_clearly_named(store, traces):
+    # Seen in the browser: after the at-risk list, "Priya" was taken to mean Priya Kapoor.
+    client, llm = client_for(store, [call("stage_update", name="Priya Kapoor", field="status", new_value="Deferred")],
+                             "Which Priya do you mean?",
+                             [call("stage_update", name="Priya Kapoor", field="status", new_value="Deferred")], "")
+    data = chat(client, "change Priya's status to Deferred")
+    assert data["type"] == "clarify" and "update" not in data
+    assert "full name" in json.loads(llm.seen[1][-1]["content"])["error"]
+    assert chat(client, "Priya Kapoor")["update"]["student_name"] == "Priya Kapoor"
+
+
+def test_short_words_do_not_name_a_student(store, traces):
+    client, _ = client_for(store, [call("stage_update", name="Tom Becker", field="status", new_value="Withdrawn")], "")
+    assert "update" not in chat(client, "change the status to Withdrawn")
+
+
+def test_typo_in_name_still_counts_as_naming(store, traces):
+    client, _ = client_for(store, [call("stage_update", name="Arjun Patel", field="status", new_value="Deferred")], "")
+    assert chat(client, "change Arjun Patle's status to Deferred")["update"]["student_name"] == "Arjun Patel"
+
+
+def test_claim_that_something_was_saved_is_replaced(store, traces):
+    client, _ = client_for(store, "The email has been saved as a draft!", "A welcome email was sent in May.")
+    assert chat(client, "yes, save it")["text"] == NOTHING_SAVED_TEXT
+    assert chat(client, "any emails lately?")["text"] == "A welcome email was sent in May."
 
 
 def test_answer_from_memory_gets_one_nudge_to_use_a_tool(store, traces):

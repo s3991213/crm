@@ -110,7 +110,13 @@ async def show_password_form(forced: bool, text: str | None = None) -> None:
         )
     else:
         text = "Sure. Fill this in to change your password."
-    await cl.Message(content=text, elements=[form]).send()
+    # Only one form on screen at a time, so a filled-in form never leaves an empty one behind it
+    old = cl.user_session.get("password_form")
+    if old:
+        await old.remove()
+    msg = cl.Message(content=text, elements=[form])
+    await msg.send()
+    cl.user_session.set("password_form", msg)
 
 
 @cl.action_callback("change_password")
