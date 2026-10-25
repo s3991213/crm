@@ -1,10 +1,17 @@
-"""Staff logins, stored as salted PBKDF2 hashes in staff.json."""
+"""Staff logins, stored as salted PBKDF2 hashes in staff.json.
+
+Each record has a random `version` that is replaced whenever the login is
+added, reset or its password changed. Sessions remember the version they
+signed in with, so a removed or reset login stops working straight away
+instead of when the session expires.
+"""
 
 import hashlib
 import hmac
 import json
 import os
 import secrets
+import tempfile
 from pathlib import Path
 
 STAFF_FILE = Path(os.getenv("STAFF_FILE", Path(__file__).parent / "staff.json"))
@@ -33,7 +40,39 @@ def load_staff() -> dict:
 
 
 def save_staff(staff: dict) -> None:
-    STAFF_FILE.write_text(json.dumps(staff, indent=2))
+    """Write staff.json readable by this user only, and atomically: a crash mid-write
+    must never leave a half-written file, because that would block every login."""
+    fd, tmp = tempfile.mkstemp(dir=STAFF_FILE.parent, prefix=".staff-", suffix=".tmp")  # created 0600
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(json.dumps(staff, indent=2))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, STAFF_FILE)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def set_staff(username: str, name: str, password: str) -> None:
+    """Add a login, or reset an existing one to a new temporary password."""
+    staff = load_staff()
+    username = username.strip().lower()
+    staff[username] = {
+        "name": name.strip(),
+        "password_hash": hash_password(password),
+        "must_change": True,
+        "version": secrets.token_hex(8),
+    }
+    save_staff(staff)
+
+
+def remove_staff(username: str) -> bool:
+    staff = load_staff()
+    if staff.pop(username.strip().lower(), None) is None:
+        return False
+    save_staff(staff)
+    return True
 
 
 def verify(username: str, password: str) -> str | None:
@@ -42,6 +81,19 @@ def verify(username: str, password: str) -> str | None:
     if record and _check(password, record["password_hash"]):
         return record["name"]
     return None
+
+
+def session_version(username: str) -> str | int | None:
+    """The login's current version, or None if the login doesn't exist."""
+    record = load_staff().get(username.strip().lower())
+    return record.get("version", 0) if record else None
+
+
+def is_current(username: str, version) -> bool:
+    """True if a session signed in at `version` is still allowed: the login exists
+    and its password hasn't been reset or changed since."""
+    current = session_version(username)
+    return current is not None and version == current
 
 
 def must_change(username: str) -> bool:
@@ -70,5 +122,6 @@ def change_password(username: str, current: str | None, new: str, confirm: str) 
         return "Please choose a password different from the one you have now."
     record["password_hash"] = hash_password(new)
     record["must_change"] = False
+    record["version"] = secrets.token_hex(8)
     save_staff(staff)
     return None

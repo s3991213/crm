@@ -3,6 +3,8 @@
 The password you set here is temporary: the staff member is asked to choose
 their own the first time they sign in.
 
+Removing or resetting a login signs that person out of any open session.
+
 Usage:
     python add_staff.py <username> "<Full Name>"
     python add_staff.py --remove <username>
@@ -11,17 +13,15 @@ Usage:
 import getpass
 import sys
 
-from staff_auth import hash_password, load_staff, save_staff
+from staff_auth import remove_staff, set_staff
 
 
 def main() -> None:
     args = sys.argv[1:]
-    staff = load_staff()
 
     if len(args) == 2 and args[0] == "--remove":
         username = args[1].strip().lower()
-        if staff.pop(username, None):
-            save_staff(staff)
+        if remove_staff(username):
             print(f"Removed {username}.")
         else:
             print(f"No login called {username}.")
@@ -40,8 +40,7 @@ def main() -> None:
         print("Passwords did not match.")
         sys.exit(1)
 
-    staff[username] = {"name": name, "password_hash": hash_password(password), "must_change": True}
-    save_staff(staff)
+    set_staff(username, name, password)
     print(f"Saved login '{username}' for {name}.")
     print("Give them the username and temporary password. They'll choose their own when they first sign in.")
 

@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Start the CRM Assistant.
 #
-#   ./run.sh              backend (mock) + frontend
-#   ./run.sh backend      mock backend only
+#   ./run.sh              backend + frontend
+#   ./run.sh backend      backend only
 #   ./run.sh frontend     frontend only (point CRM_API_BASE_URL in frontend/.env at your backend)
 #   ./run.sh add-staff <username> "<Full Name>"
 #   ./run.sh test         run the test suite (extra args go to pytest)
+#   ./run.sh evals        run the LLM evals (needs LM Studio; extra args go to evals/run.py)
 #
+# The backend is the LLM one in backend/ (model set in backend/.env). BACKEND=mock uses the keyword mock instead.
 # Ports can be changed with BACKEND_PORT=8000 FRONTEND_PORT=8080 ./run.sh
 
 set -euo pipefail
@@ -15,6 +17,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 HOST="${HOST:-127.0.0.1}"   # use HOST=0.0.0.0 to open the frontend to the office network
+BACKEND="${BACKEND:-llm}"
 
 # Find the crmenv conda environment
 CONDA_BASE="$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")"
@@ -26,9 +29,17 @@ if [[ ! -x "$ENV_BIN/python" ]]; then
 fi
 
 run_backend() {
-  echo "Backend  → http://localhost:$BACKEND_PORT"
-  cd "$ROOT/mock_backend"
-  exec "$ENV_BIN/uvicorn" main:app --port "$BACKEND_PORT"
+  echo "Backend ($BACKEND) → http://localhost:$BACKEND_PORT"
+  if [[ "$BACKEND" == "mock" ]]; then
+    cd "$ROOT/mock_backend"
+    exec "$ENV_BIN/uvicorn" main:app --port "$BACKEND_PORT"
+  fi
+  cd "$ROOT"
+  if [[ ! -f backend/.env ]]; then
+    echo "backend/.env is missing. Copy backend/.env.example to backend/.env and set LLM_MODEL."
+    exit 1
+  fi
+  exec "$ENV_BIN/uvicorn" --factory backend.app:default_app --port "$BACKEND_PORT"
 }
 
 check_frontend() {
@@ -91,8 +102,13 @@ case "${1:-all}" in
     cd "$ROOT"
     exec "$ENV_BIN/python" -m pytest "$@"
     ;;
+  evals)
+    shift
+    cd "$ROOT"
+    exec "$ENV_BIN/python" -m evals.run "$@"
+    ;;
   *)
-    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac

@@ -51,3 +51,83 @@ def test_change_password_rules(staff_file):
     assert "different" in staff_auth.change_password("priya", "temp-pass-1", "temp-pass-1", "temp-pass-1")
     assert "couldn't find" in staff_auth.change_password("nobody", None, "new-pass-123", "new-pass-123")
     assert staff_auth.verify("priya", "temp-pass-1") == "Priya Shah"
+
+
+def test_set_staff_and_remove(staff_file):
+    staff_auth.set_staff(" Priya ", "Priya Shah", "temp-pass-1")
+    assert staff_auth.verify("priya", "temp-pass-1") == "Priya Shah"
+    assert staff_auth.must_change("priya")
+    assert staff_auth.remove_staff("priya")
+    assert staff_auth.verify("priya", "temp-pass-1") is None
+    assert not staff_auth.remove_staff("priya")
+
+
+def test_session_stays_valid_until_something_changes(staff_file):
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-1")
+    version = staff_auth.session_version("priya")
+    assert staff_auth.is_current("priya", version)
+    assert staff_auth.is_current("PRIYA", version)
+
+
+def test_removed_login_ends_sessions(staff_file):
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-1")
+    version = staff_auth.session_version("priya")
+    staff_auth.remove_staff("priya")
+    assert staff_auth.session_version("priya") is None
+    assert not staff_auth.is_current("priya", version)
+
+
+def test_reset_ends_old_sessions(staff_file):
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-1")
+    old = staff_auth.session_version("priya")
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-2")
+    assert not staff_auth.is_current("priya", old)
+
+
+def test_removed_then_re_added_login_ends_old_sessions(staff_file):
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-1")
+    old = staff_auth.session_version("priya")
+    staff_auth.remove_staff("priya")
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-2")
+    assert not staff_auth.is_current("priya", old)
+
+
+def test_password_change_ends_other_sessions(staff_file):
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-1")
+    old = staff_auth.session_version("priya")
+    assert staff_auth.change_password("priya", None, "my-own-pass", "my-own-pass") is None
+    assert not staff_auth.is_current("priya", old)
+    assert staff_auth.is_current("priya", staff_auth.session_version("priya"))
+
+
+def test_failed_password_change_keeps_sessions(staff_file):
+    staff_auth.set_staff("priya", "Priya Shah", "temp-pass-1")
+    version = staff_auth.session_version("priya")
+    staff_auth.change_password("priya", None, "short", "short")
+    assert staff_auth.is_current("priya", version)
+
+
+def test_records_without_version_still_work(staff_file):
+    add(must_change=False)  # written the old way, with no "version" field
+    assert staff_auth.is_current("priya", 0)
+    assert not staff_auth.is_current("priya", None)  # sessions from before versions existed
+
+
+def test_staff_file_is_private(staff_file):
+    add()
+    assert staff_file.stat().st_mode & 0o777 == 0o600
+
+
+def test_failed_write_leaves_file_intact(staff_file, monkeypatch):
+    add()
+    before = staff_file.read_text()
+
+    def crash(*args):
+        raise OSError("disk full")
+    monkeypatch.setattr(staff_auth.os, "replace", crash)
+    try:
+        staff_auth.set_staff("liam", "Liam Nguyen", "temp-pass-2")
+    except OSError:
+        pass
+    assert staff_file.read_text() == before
+    assert [p.name for p in staff_file.parent.iterdir()] == ["staff.json"]

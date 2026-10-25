@@ -1,13 +1,41 @@
-# CRM Assistant: staff frontend
+# CRM Assistant
 
-A plain-English chat app for front-desk and admin staff, built with Chainlit and connected to the CRM Assistant FastAPI backend.
+A plain-English chat assistant for front-desk and admin staff. A tool-calling LLM (running locally in LM Studio, or on any OpenAI-compatible API) looks up student records, summarises histories, flags at-risk students, drafts emails and *proposes* record changes. Nothing is saved until a staff member clicks **Confirm**.
 
 ```
+backend/         FastAPI + tool-calling LLM agent over SQLite (the real backend)
+evals/           Eval suite: realistic staff requests, scored per category, with latency
 frontend/        Chainlit app (what staff use)
-mock_backend/    Stand-in FastAPI backend for trying the UI without the real one
+mock_backend/    Keyword-matching stand-in, for UI work without a model
+tests/           pytest suite (no model needed)
 ```
 
 The frontend is deliberately thin. It sends what staff type to the backend and decides how to *show* the reply. It never decides anything about records.
+
+## How the backend keeps the model safe
+
+The model chooses *which* tool to call. The code decides what each tool may do:
+
+- Five tools: `find_student`, `get_history`, `list_at_risk`, `stage_update`, `draft_email`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
+- Fields and values are checked against allowed lists, and there's one change per request.
+- A name that matches several students, or none, comes back as a question, never a guess.
+- The reply type comes from what the tools did, not what the model says. A confirm card always carries fixed wording, so the model can't claim "saved".
+- Email drafts are addressed from the record, never by the model, and are never sent.
+- Student notes are passed as data. The seed data contains a planted prompt injection, and an eval checks it's ignored.
+- Confirm refuses if the record changed after the change was staged (409). Every stage, confirm, cancel and conflict goes to an `audit` table.
+- Each request is traced to `backend/logs/traces.jsonl`: model, LLM calls (ms, tokens), tool calls (args, ok, ms).
+
+Risk scores come from transparent rules in `backend/store.py` (days since contact, payment, attendance), not from the model.
+
+## Evals
+
+`./run.sh evals` runs every case in `evals/cases.yaml` against the configured model. The categories are lookup, history, at-risk, update, draft, clarify, safety and multi-turn. Each case runs on a fresh copy of the seed data and also checks that no record was written. Results are saved to `evals/results/`.
+
+```bash
+./run.sh evals                                  # model from backend/.env
+./run.sh evals --model qwen/qwen3-14b --repeat 3   # pass^3: every run must pass
+./run.sh evals --only update --verbose
+```
 
 ## What staff see
 
@@ -25,9 +53,26 @@ Uses the `crmenv` conda environment.
 ```bash
 conda create -n crmenv python=3.12 -y     # skip if it already exists
 conda activate crmenv
-pip install -r frontend/requirements.txt
-pip install -r mock_backend/requirements.txt   # only needed for the mock
+pip install -r requirements-dev.txt     # backend, frontend, mock and test dependencies
 ```
+
+**Model.** Install [LM Studio](https://lmstudio.ai), download a tool-calling model (e.g. Qwen3 14B) and start its server
+(Developer tab, or `lms server start`). Then:
+
+```bash
+cp backend/.env.example backend/.env   # set LLM_MODEL to the id LM Studio shows
+```
+
+| Setting (`backend/.env`) | Meaning |
+|---|---|
+| `LLM_BASE_URL` | OpenAI-compatible server, default LM Studio `http://localhost:1234/v1` |
+| `LLM_MODEL` | Model id |
+| `LLM_API_KEY` | Only for hosted APIs |
+| `LLM_NO_THINK` | `1` (default) adds `/no_think` so Qwen3-style models skip hidden reasoning (several times faster) |
+
+The database is created and seeded from `backend/seed.json` on first run at `backend/data/crm.db`. Delete that file to reset it.
+
+**Frontend.**
 
 Create `frontend/.env` from the example and fill it in:
 
@@ -35,6 +80,7 @@ Create `frontend/.env` from the example and fill it in:
 cd frontend
 cp .env.example .env
 chainlit create-secret      # paste the printed CHAINLIT_AUTH_SECRET into .env
+chmod 600 .env              # only your user account can read the secret
 ```
 
 | Setting | Meaning |
@@ -52,7 +98,9 @@ Each staff member gets their own login, so every saved change is recorded under 
 cd frontend && python add_staff.py --remove priya   # remove a login
 ```
 
-Logins are stored as salted hashes in `frontend/staff.json`. Running `add-staff` again for an existing username resets that person to a new temporary password, which is how you handle a forgotten password.
+Logins are stored as salted hashes in `frontend/staff.json`, readable only by your user account. Running `add-staff` again for an existing username resets that person to a new temporary password, which is how you handle a forgotten password.
+
+Removing or resetting a login, or the person changing their own password, ends their other open sessions straight away: their next message asks them to sign in again.
 
 ### Signing in
 
@@ -68,8 +116,9 @@ The quickest way is `run.sh` from the project folder (no need to activate the en
 
 ```bash
 ./run.sh add-staff priya "Priya Shah"   # first time only
-./run.sh                                # mock backend + frontend together (Ctrl+C stops both)
-./run.sh backend                        # mock backend only
+./run.sh                                # backend + frontend together (Ctrl+C stops both)
+./run.sh backend                        # backend only
+BACKEND=mock ./run.sh                   # keyword mock instead of the LLM (no model needed)
 ./run.sh frontend                       # frontend only, e.g. against the real backend
 ./run.sh test                           # run the tests (needs: pip install -r requirements-dev.txt)
 ```
@@ -78,11 +127,11 @@ Ports and host can be changed: `BACKEND_PORT=8001 FRONTEND_PORT=9000 HOST=0.0.0.
 
 To run them by hand instead:
 
-**1. Backend.** Start the real FastAPI backend, or the mock:
+**1. Backend.** From the project folder, start the LLM backend, or the mock:
 
 ```bash
-cd mock_backend
-uvicorn main:app --port 8000
+uvicorn --factory backend.app:default_app --port 8000
+cd mock_backend && uvicorn main:app --port 8000   # or the mock
 ```
 
 **2. Frontend**
@@ -94,7 +143,7 @@ chainlit run app.py --port 8080
 
 Open http://localhost:8080 and sign in. To let other computers in the office use it, run with `--host 0.0.0.0` and share `http://<this-computer's-IP>:8080`.
 
-With the mock backend, try: *"find Liam"*, *"summarise Sofia's history"*, *"change Arjun's status to Withdrawn"*, *"draft a follow-up email for Priya"*.
+Try: *"find Liam"*, *"summarise Sofia's history"*, *"change Arjun's status to Withdrawn"*, *"draft a follow-up email for Liam about his overdue payment"*, *"find Priya"* (two students match, so it asks which).
 
 ## Audit trail
 

@@ -1,8 +1,8 @@
 # CRM Assistant
 
-Staff chat frontend (Chainlit, `frontend/`) for a FastAPI CRM backend. `mock_backend/` is a stand-in for the
-real backend. The API contract lives in README.md ("Backend API contract"): keep the frontend and the mock in
-line with it.
+Staff chat frontend (Chainlit, `frontend/`) for a FastAPI backend (`backend/`) where a tool-calling LLM works over
+SQLite records. `mock_backend/` is a keyword stand-in. The API contract lives in README.md ("Backend API contract"):
+keep the frontend, backend and mock in line with it. The plan for the backend is in PLAN.md.
 
 ## Progress log
 @PROGRESS.md
@@ -13,13 +13,17 @@ the top of "Log" and tick, add or remove items in "Up next". Keep entries short;
 ## Commands
 - Python env is the `crmenv` conda environment. `run.sh` finds it itself, so there's no need to activate it.
 - `./run.sh test` runs pytest (args pass through, e.g. `./run.sh test -k auth`). Run it after every change.
-- `./run.sh` starts mock backend (:8000) + frontend (:8080). Don't leave it running after checking something.
+- `./run.sh` starts the LLM backend (:8000) + frontend (:8080); `BACKEND=mock ./run.sh` for no model. Don't leave it running.
+- `./run.sh evals [--only <id>] [--model <id>]` runs the LLM evals against LM Studio (localhost:1234). They're slow
+  (~10-20 s per case), so use `--only` while iterating. After changing the prompt, tools or `store.py`,
+  run the full suite and commit `evals/results/`.
 - First-time dev deps: `~/miniconda3/envs/crmenv/bin/pip install -r requirements-dev.txt`
 
 ## Rules
 - The frontend stays thin: it only decides how to *show* backend replies. Record logic belongs in the backend.
-- IMPORTANT: nothing writes to a record except `POST /updates/{id}/confirm`, after staff click Confirm.
-  Email drafts are never sent.
+- IMPORTANT: nothing writes to a record except `POST /updates/{id}/confirm` (`Store.confirm`), after staff click
+  Confirm. Agent tools may only read or stage. Email drafts are never sent.
+- Enforce safety in code (store/agent), not just the system prompt; add an eval case for every new rule.
 - Every backend call carries `X-Staff-Name`; every confirmed change is also logged to `frontend/logs/writes.log`.
 - Passwords never go to the CRM backend or into chat history. They go only through the `change_password`
   action and `staff_auth.py`.
@@ -28,5 +32,6 @@ the top of "Log" and tick, add or remove items in "Up next". Keep entries short;
 
 ## Testing notes
 - `app.py` needs a Chainlit context and has no unit tests; check UI changes with `./run.sh` and a screenshot.
+- `tests/test_backend.py` drives the agent with a scripted `FakeLLM`: no model needed.
 - Tests reset the mock's in-memory `STUDENTS`/`PENDING` and point `staff_auth.STAFF_FILE` at a temp file
   (see `tests/conftest.py`).

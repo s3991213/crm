@@ -35,6 +35,10 @@ CLARIFY_DOWN = (
     "I couldn't reach the student records just now. Would you like to try again in a minute? "
     "If it keeps happening, please let your manager know."
 )
+SIGNED_OUT = (
+    "Your login has been changed or removed, so this session has ended. "
+    "Please sign out (top right) and sign in again."
+)
 
 
 def staff_name() -> str:
@@ -47,6 +51,12 @@ def staff_username() -> str:
     return user.identifier if user else ""
 
 
+def session_ok() -> bool:
+    """False once this login is removed or its password reset or changed elsewhere."""
+    user = cl.user_session.get("user")
+    return bool(user) and staff_auth.is_current(user.identifier, (user.metadata or {}).get("version"))
+
+
 def wants_password_change(text: str) -> bool:
     t = text.lower()
     return "password" in t and any(w in t for w in ("change", "reset", "new", "update"))
@@ -56,7 +66,9 @@ def wants_password_change(text: str) -> bool:
 def auth_callback(username: str, password: str):
     name = staff_auth.verify(username, password)
     if name:
-        return cl.User(identifier=username.strip().lower(), display_name=name, metadata={"name": name})
+        username = username.strip().lower()
+        version = staff_auth.session_version(username)
+        return cl.User(identifier=username, display_name=name, metadata={"name": name, "version": version})
     return None
 
 
@@ -80,6 +92,9 @@ async def set_starters(user=None, language=None):
 
 @cl.on_chat_start
 async def on_chat_start():
+    if not session_ok():
+        await ask(SIGNED_OUT)
+        return
     if staff_auth.must_change(staff_username()):
         await show_password_form(forced=True)
 
@@ -102,6 +117,8 @@ async def show_password_form(forced: bool, text: str | None = None) -> None:
 async def on_change_password(action: cl.Action):
     # Called straight from the ChangePassword form, so the password never appears in the chat
     # and is never sent to the CRM backend.
+    if not session_ok():
+        return {"ok": False, "error": SIGNED_OUT}
     username = staff_username()
     forced = staff_auth.must_change(username)
     p = action.payload or {}
@@ -113,6 +130,8 @@ async def on_change_password(action: cl.Action):
     )
     if problem:
         return {"ok": False, "error": problem}
+    # Changing the password ends every other session; keep this one going.
+    cl.user_session.get("user").metadata["version"] = staff_auth.session_version(username)
     write_log.info("staff=%r changed their password", staff_name())
     if forced:
         await ask(
@@ -141,6 +160,10 @@ async def call_backend(fn, *args) -> dict | None:
 async def on_message(message: cl.Message):
     text = message.content.strip()
     if not text:
+        return
+
+    if not session_ok():
+        await ask(SIGNED_OUT)
         return
 
     if staff_auth.must_change(staff_username()):
@@ -239,6 +262,9 @@ async def show_confirmation(update: dict, text: str) -> None:
 
 
 async def resolve_update(action: cl.Action, confirmed: bool) -> None:
+    if not session_ok():
+        await ask(SIGNED_OUT)
+        return
     update_id = action.payload.get("update_id")
     pending = cl.user_session.get("pending_updates") or {}
     entry = pending.pop(update_id, None)
