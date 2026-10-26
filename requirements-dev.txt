@@ -3,3 +3,4 @@
 -r backend/requirements.txt
 pytest>=8
 pyyaml>=6
+scikit-learn>=1.5  # backend/train_risk.py only

@@ -36,19 +36,21 @@ Risk scores come from transparent rules in `backend/store.py` (days since contac
 
 The college's real records will come from its own MySQL database. Until we have access, `college_db/` models one:
 
-- `schema.sql`: 10 tables that run unchanged on MySQL 8 and SQLite. The fields follow what an Australian
+- `schema.sql`: 11 tables that run unchanged on MySQL 8 and SQLite. The fields follow what an Australian
   college with international students (CRICOS) has to keep, and what education agents' CRMs track:
   - `students`: personal and contact details, passport, USI (vocational students), address, emergency contact,
     and the agent who referred them.
   - `enrolments`: course, CoE number, offer, start and end dates, status, attendance %, course progress,
     counsellor. Attendance and progress are what the ESOS National Code (Standard 8) says must be monitored.
+  - `attendance_weeks`: hours scheduled and attended each week, so attendance can be seen as it stood on any day.
   - `visas` (subclass 500), `health_cover` (OSHC), `english_tests` (IELTS, PTE…), `education_history`.
   - `fee_instalments` (term-by-term tuition, what's paid and when), `contact_notes` (dated staff notes).
   - `agents` (agency, country, commission) and `courses` (national code, CRICOS code, length, fees).
 - `generate.py` makes as many students as you ask for (600 by default), with realistic names for 15 source
   countries plus domestic students, pathway students (English course, then a diploma), deferrals, withdrawals,
   late payers, low attendance with warning letters, and two planted prompt injections. All of it is made up.
-  The same `--seed` gives the same data.
+  The same `--seed` gives the same data. Each student has a hidden engagement level that shapes their
+  attendance, payments and how often they're in touch; most who withdraw fade out first, some leave suddenly.
 - `backend/source_import.py` turns those tables into the assistant's one-row-per-student `crm.db`.
   It only runs SELECTs, and gives identical results from MySQL (via PyMySQL) and SQLite.
 
@@ -60,6 +62,24 @@ mysql -u <user> -p <database> < college_db/out/college.sql   # load it into MySQ
 ```
 
 The evals keep using the 12 hand-written students in `backend/seed.json`, since their cases name them.
+
+## At-risk model
+
+The at-risk list comes from a trained model, not from the language model. `backend/train_risk.py` takes a snapshot
+of every enrolment every 4 weeks (attendance, days since last contact and payments as they stood that day) and
+whether the student withdrew in the 90 days after. A logistic regression (scikit-learn) learns from those, keeping
+only features that raise the risk. Its weights go to `backend/risk_model.json`; `backend/risk_model.py` scores
+students with them in plain Python, and each feature's share of the score becomes a reason staff can read.
+Anyone with at least a 10% chance of withdrawing in the next 3 months is flagged.
+
+```bash
+./run.sh make-data && ./run.sh train-risk            # retrain; writes the model and evals/results/risk-model.md
+./run.sh train-risk --source other.db --today 2026-10-25
+```
+
+The report compares the model with the old hand-written rule score on the same snapshots: cross-validation grouped
+by student, and a check over time (trained on what was known 9 months ago, tested since). On the synthetic data
+the model has the higher AUC and about twice the precision; real records will give different numbers.
 
 ## Evals
 
@@ -75,7 +95,7 @@ The evals keep using the 12 hand-written students in `backend/seed.json`, since 
 
 - **Chat.** Type a request in plain English. While the backend works, a short "Working on it…" line shows.
 - **Student card.** When a reply is about one student, a compact card (name, status, course, last contact, payment) appears above the answer.
-- **At-risk students.** A welcome-screen button shows a table sorted by risk, with the model's top two reasons for each student. Tapping a name asks for that student's summary.
+- **At-risk students.** A welcome-screen button shows a table sorted by risk (the chance of withdrawing in the next 3 months, from the at-risk model), with its top two reasons for each student. In chat the table shows the top 20. Tapping a name asks for that student's summary.
 - **Draft emails.** Drafts appear in editable boxes with a **Copy** button. Nothing is ever sent from here.
 - **Confirmed changes.** Any change to a record shows a card (student, field, old value → new value) with **Confirm** and **Cancel**. Nothing is saved until Confirm is clicked. The buttons disappear after one click, so a change can't be saved twice.
 - **When things go wrong.** If the backend is down, slow, or the request is unclear, the assistant asks a short question instead of guessing.
@@ -225,7 +245,7 @@ Use `type: "clarify"` with a short question in `text` whenever the intent or the
 
 ### `GET /at-risk`
 
-Returns `{"text": "optional intro", "students": [...]}` in the same shape as above. The "Show at-risk students" button calls this directly, without the language model. `risk_score` may be 0–1 or 0–100.
+Returns `{"text": "optional intro", "students": [...]}` in the same shape as above. The "Show at-risk students" button calls this directly, without the language model. `risk_score` is the chance of withdrawing in the next 3 months, 0–1 (0–100 is also accepted).
 
 ### `POST /updates/{update_id}/confirm` and `POST /updates/{update_id}/cancel`
 

@@ -11,6 +11,8 @@ import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from .risk_model import RiskModel
+
 STATUSES = ["Active", "Visa pending", "Deferred", "Withdrawn", "Completed"]
 PAYMENT_STATUSES = ["Paid", "Partial", "Overdue"]
 
@@ -46,8 +48,10 @@ class StoreError(Exception):
 
 
 class Store:
-    def __init__(self, path: str | Path = ":memory:", today=date.today, now=datetime.now):
+    def __init__(self, path: str | Path = ":memory:", today=date.today, now=datetime.now,
+                 risk_model: RiskModel | None = None):
         self.today, self.now = today, now
+        self.risk_model = risk_model or RiskModel.load()
         self.db = sqlite3.connect(str(path), check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
@@ -109,32 +113,19 @@ class Store:
         return {k: s[k] for k in ("name", "status", "course", "last_contact", "payment_status")}
 
     def risk(self, s: dict) -> tuple[float, list[str]]:
-        """A transparent risk score from 0 to 1, and the reasons behind it, biggest first."""
+        """The chance (0-1) that a current student withdraws in the next 90 days, and why, biggest reason first."""
         if s["status"] in ("Withdrawn", "Completed", "Deferred"):
             return 0.0, []
-        factors = []
         days = (self.today() - date.fromisoformat(s["last_contact"])).days
-        if days >= 45:
-            factors.append((0.35, f"No contact in {days} days"))
-        elif days >= 30:
-            factors.append((0.2, f"No contact in {days} days"))
-        if s["payment_status"] == "Overdue":
-            factors.append((0.3, "Payment overdue"))
-        elif s["payment_status"] == "Partial":
-            factors.append((0.15, "Only partly paid"))
-        if s["attendance"] < 70:
-            factors.append((0.3, f"Attendance at {s['attendance']}%"))
-        elif s["attendance"] < 80:
-            factors.append((0.15, f"Attendance at {s['attendance']}%"))
-        factors.sort(reverse=True)
-        return round(min(1.0, sum(w for w, _ in factors)), 2), [r for _, r in factors]
+        return self.risk_model.score(s["attendance"], days, s["payment_status"])
 
-    def at_risk(self, threshold: float = 0.4) -> list[dict]:
+    def at_risk(self) -> list[dict]:
+        """Current students at or above the model's flag line, highest chance first."""
         rows = []
         for s in self.all_students():
             score, reasons = self.risk(s)
-            if score >= threshold:
-                rows.append({"name": s["name"], "risk_score": score, "reasons": reasons[:2]})
+            if score >= self.risk_model.threshold:
+                rows.append({"name": s["name"], "risk_score": round(score, 2), "reasons": reasons[:2]})
         return sorted(rows, key=lambda r: r["risk_score"], reverse=True)
 
     # --- staged changes ----------------------------------------------------

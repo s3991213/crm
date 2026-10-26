@@ -8,6 +8,7 @@
 #   ./run.sh test         run the test suite (extra args go to pytest; with none, the UI tests run too)
 #   ./run.sh e2e          browser test of the staff app against the mock backend (extra args go to Playwright)
 #   ./run.sh make-data    synthetic college database (600 students; --students N) and an assistant database from it
+#   ./run.sh train-risk   train the at-risk model on the make-data college database and write its validation report
 #   ./run.sh evals        run the LLM evals (needs LM Studio; extra args go to evals/run.py)
 #   ./run.sh ui-dev       hot-reloading UI on :5173 while working on frontend/ui (run `frontend` alongside)
 #
@@ -143,6 +144,11 @@ case "${1:-all}" in
     shift
     cd "$ROOT"
     exec "$ENV_BIN/python" -m college_db.generate --crm-db backend/data/crm-synthetic.db "$@"
+    ;;
+  train-risk)
+    shift
+    cd "$ROOT"
+    exec "$ENV_BIN/python" -m backend.train_risk "$@"
     ;;
   evals)
     shift

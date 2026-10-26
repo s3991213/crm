@@ -11,6 +11,7 @@
 DROP TABLE IF EXISTS contact_notes;
 DROP TABLE IF EXISTS fee_instalments;
 DROP TABLE IF EXISTS health_cover;
+DROP TABLE IF EXISTS attendance_weeks;
 DROP TABLE IF EXISTS english_tests;
 DROP TABLE IF EXISTS education_history;
 DROP TABLE IF EXISTS visas;
@@ -93,6 +94,16 @@ CREATE TABLE enrolments (
     FOREIGN KEY (course_id) REFERENCES courses (id)
 );
 
+-- Hours attended each week (Standard 8: attendance is monitored, and students below 80% are contacted).
+CREATE TABLE attendance_weeks (
+    id              INTEGER PRIMARY KEY,
+    enrolment_id    INTEGER NOT NULL,
+    week_start      DATE    NOT NULL,                   -- a Monday
+    scheduled_hours INTEGER NOT NULL,                   -- 20 a week for student-visa courses
+    attended_hours  INTEGER NOT NULL CHECK (attended_hours >= 0),
+    FOREIGN KEY (enrolment_id) REFERENCES enrolments (id)
+);
+
 CREATE TABLE visas (
     id           INTEGER PRIMARY KEY,
     student_id   INTEGER     NOT NULL,
@@ -159,6 +170,7 @@ CREATE TABLE contact_notes (
 
 CREATE INDEX idx_students_family_name ON students (family_name);
 CREATE INDEX idx_enrolments_student ON enrolments (student_id);
+CREATE INDEX idx_attendance_weeks_enrolment ON attendance_weeks (enrolment_id);
 CREATE INDEX idx_visas_student ON visas (student_id);
 CREATE INDEX idx_health_cover_student ON health_cover (student_id);
 CREATE INDEX idx_english_tests_student ON english_tests (student_id);

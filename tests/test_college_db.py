@@ -27,7 +27,7 @@ def one(db, sql):
 
 def test_every_table_is_filled_and_consistent(college):
     assert one(college, "select count(*) from students") == 120
-    for table in ("agents", "courses", "enrolments", "visas", "health_cover", "english_tests", "education_history",
+    for table in ("agents", "courses", "enrolments", "attendance_weeks", "visas", "health_cover", "english_tests", "education_history",
                   "fee_instalments", "contact_notes"):
         assert one(college, f"select count(*) from {table}") > 0, table
     assert college.execute("pragma foreign_key_check").fetchall() == []

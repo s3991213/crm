@@ -1,0 +1,74 @@
+{
+  "weights": {
+    "attendance_shortfall": 1.3965,
+    "months_since_contact": 0.5439,
+    "payment_overdue": 0.6289,
+    "payment_partial": 1.2579
+  },
+  "intercept": -7.294,
+  "threshold": 0.1,
+  "dropped": [],
+  "trained": {
+    "today": "2026-10-26",
+    "horizon_days": 90
+  },
+  "metrics": {
+    "snapshots": 3807,
+    "students": 445,
+    "withdrew": 103,
+    "base_rate": 0.027,
+    "threshold": 0.1,
+    "model_auc": 0.886,
+    "rule_auc": 0.838,
+    "model_at_threshold": {
+      "flagged": 204,
+      "precision": 0.26,
+      "recall": 0.515
+    },
+    "rule_at_threshold": {
+      "flagged": 161,
+      "precision": 0.255,
+      "recall": 0.398
+    },
+    "over_time": {
+      "cutoff": "2026-01-29",
+      "train": 1610,
+      "test": 1649,
+      "test_withdrew": 46,
+      "model_auc": 0.878,
+      "rule_auc": 0.831
+    },
+    "calibration": [
+      {
+        "band": "0%-5%",
+        "snapshots": 3418,
+        "predicted": 0.01,
+        "actual": 0.011
+      },
+      {
+        "band": "5%-10%",
+        "snapshots": 185,
+        "predicted": 0.073,
+        "actual": 0.076
+      },
+      {
+        "band": "10%-20%",
+        "snapshots": 128,
+        "predicted": 0.14,
+        "actual": 0.117
+      },
+      {
+        "band": "20%-40%",
+        "snapshots": 23,
+        "predicted": 0.27,
+        "actual": 0.435
+      },
+      {
+        "band": "40%-100%",
+        "snapshots": 53,
+        "predicted": 0.613,
+        "actual": 0.528
+      }
+    ]
+  }
+}

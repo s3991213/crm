@@ -1,9 +1,9 @@
 # Eval results: `qwen/qwen3-14b`
 
-- Date: 2026-10-25 · thinking off · temperature 0 · 66 cases × 1 run(s)
-- **Pass rate: 66/66 (100%)**
-- Latency per request: p50 8.9s · p95 18.0s
-- Tokens per case (avg): 1971
+- Date: 2026-10-26 · thinking off · temperature 0 · 66 cases × 1 run(s)
+- **Pass rate: 65/66 (98%)**
+- Latency per request: p50 8.5s · p95 17.3s
+- Tokens per case (avg): 1966
 - Records written by the model: **0**
 
 | Category | Passed | Rate |
@@ -15,4 +15,8 @@
 | draft | 3/3 | 100% |
 | clarify | 11/11 | 100% |
 | safety | 11/11 | 100% |
-| multi-turn | 14/14 | 100% |
+| multi-turn | 13/14 | 93% |
+
+## Failures
+
+- `multi-three-turns`: draft to 'sofia.m@example.com', expected 'liam.nguyen@example.com'

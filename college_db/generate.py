@@ -119,6 +119,11 @@ PREFERRED = ["Kevin", "Amy", "Jason", "Cindy", "Eric", "Vivian", "Leo", "Coco", 
 
 DOMESTIC_SHARE = 0.15
 STATUS_WEIGHTS = {"Active": 60, "Visa pending": 5, "Deferred": 6, "Withdrawn": 9, "Completed": 20}
+# Each student has a hidden engagement level (0-1) that shapes their attendance, payments and contact. It's drawn
+# from a beta distribution per outcome, so the outcomes overlap: some keen students still withdraw, and some
+# students who struggle finish. That keeps the at-risk model's validation honest (backend/train_risk.py).
+ENGAGEMENT = {"Active": (5, 2), "Visa pending": (4, 2), "Completed": (6, 2), "Deferred": (3, 2), "Withdrawn": (2, 2.5)}
+HOURS_PER_WEEK = 20  # the minimum for a student-visa course
 
 # national code, name, level, weeks, tuition, material fee, popularity
 COURSES = [
@@ -205,7 +210,7 @@ class Generator:
     def __init__(self, students: int, seed: int, today: date):
         self.n, self.today, self.rng = students, today, random.Random(seed)
         self.tables: dict[str, list[dict]] = {t: [] for t in (
-            "agents", "courses", "students", "enrolments", "visas", "health_cover", "english_tests",
+            "agents", "courses", "students", "enrolments", "attendance_weeks", "visas", "health_cover", "english_tests",
             "education_history", "fee_instalments", "contact_notes")}
         self.names: set[str] = set()
         self.emails: set[str] = set()
@@ -307,6 +312,9 @@ class Generator:
         elif status == "Deferred" and rng.random() < 0.4:  # deferred before starting
             start = today + self.days(20, 150)
             end = start + timedelta(weeks=weeks)
+        elif status == "Withdrawn":  # could have left any time in the past, like those who completed
+            start = today - self.days(14, weeks * 7 + 420)
+            end = start + timedelta(weeks=weeks)
         else:
             start = today - self.days(14, max(15, weeks * 7 - 21))
             end = start + timedelta(weeks=weeks)
@@ -362,36 +370,48 @@ class Generator:
             self.english_test(student, offer, is_english or pathway is not None)
 
         counsellor = rng.choice(STAFF)
+        engagement = rng.betavariate(*ENGAGEMENT[status])
         if pathway:
-            enrol = self.enrol(student, pathway, offer, first_start, "Completed", counsellor, attendance=rng.randint(82, 99),
-                               changed=first_start + timedelta(weeks=pathway["duration_weeks"]))
+            pathway_end = first_start + timedelta(weeks=pathway["duration_weeks"])
+            attended = self.weekly_attendance(first_start, pathway_end, max(engagement, 0.75), fade=0)
+            enrol = self.enrol(student, pathway, offer, first_start, "Completed", counsellor,
+                               attendance=self.percent(attended), changed=pathway_end, weeks=attended)
             self.note(student, first_start, f"Started the {pathway['name']} as a pathway to the {course['name']}.")
             self.note(student, enrol["expected_end_date"], f"Completed the {pathway['name']}; moving on to the "
                                                            f"{course['name']} on {long_date(start)}.")
             self.fees(student, enrol, behaviour="good")
 
-        attendance = self.attendance(status) if start <= today else 0
         changed = None
         if status in ("Deferred", "Withdrawn"):
             if start > today:  # deferred before starting
                 changed = min(today - timedelta(days=2), offer + self.days(10, 40))
             else:
-                changed = min(start + self.days(7, max(7, (today - start).days - 3)), today - timedelta(days=1))
+                changed = min(start + self.days(7, max(7, min(weeks * 7, (today - start).days) - 3)),
+                              today - timedelta(days=1))
         elif status == "Completed":
             changed = end
+        # Most students who withdraw fade out first: attendance tails off over their last few weeks. The rest leave
+        # suddenly (a job offer, a move). Some current students with low engagement are fading out right now.
+        fade = 0
+        if status == "Withdrawn" and rng.random() < 0.7:
+            fade = rng.randint(4, 8)
+        elif status in ("Active", "Visa pending") and engagement < 0.5 and rng.random() < 0.4:
+            fade = rng.randint(3, 6)
+        attended = self.weekly_attendance(start, min(changed or today, today), engagement, fade) if start <= today else []
+        attendance = self.percent(attended)
         enrol = self.enrol(student, course, offer if not pathway else start - self.days(30, 60), start, status,
-                           counsellor, attendance=attendance, changed=changed)
+                           counsellor, attendance=attendance, changed=changed, weeks=attended)
         self.note(student, enrol["offer_date"], f"Letter of offer issued for the {course['name']}, starting "
                                                 f"{long_date(start)}.", channel="Email")
         if international and start <= today:  # those who deferred before starting haven't applied yet
             self.visa_and_cover(student, enrol, offer, first_start, status)
         # Students who stop attending tend to fall behind on fees and go quiet too.
-        struggling = status in ("Active", "Visa pending") and attendance < 80
-        behaviour = rng.choices(["good", "late", "short"], [60, 25, 15] if struggling else [80, 12, 8])[0]
+        struggling = engagement < 0.5
+        behaviour = rng.choices(["good", "late", "short"], [55, 28, 17] if struggling else [82, 11, 7])[0]
         if status == "Completed":
             behaviour = rng.choices(["good", "late"], [95, 5])[0]
         self.fees(student, enrol, behaviour)
-        self.story(student, enrol, course, status, attendance)
+        self.story(student, enrol, course, status, attendance, struggling, fade)
 
     def education(self, student: dict, country: str, international: bool) -> None:
         rng = self.rng
@@ -422,24 +442,41 @@ class Generator:
         self.add("english_tests", student_id=student["id"], test_type=test, overall_score=float(lo + k * step),
                  test_date=before - self.days(20, 300))
 
-    def enrol(self, student, course, offer, start, status, counsellor, attendance, changed) -> dict:
+    def enrol(self, student, course, offer, start, status, counsellor, attendance, changed, weeks) -> dict:
         end = start + timedelta(weeks=course["duration_weeks"])
         progress = "Satisfactory"
         if status in ("Active", "Visa pending") and (attendance < 70 or self.rng.random() < 0.07):
             progress = self.rng.choices(["At risk", "Not satisfactory"], [4, 1])[0]
-        return self.add(
+        enrol = self.add(
             "enrolments", student_id=student["id"], course_id=course["id"],
             coe_number=f"E{self.digits(7)}" if student["is_international"] else None,
             offer_date=offer, start_date=start, expected_end_date=end, status=status, status_changed_on=changed,
             deferred_until=(max(self.today, start) + self.days(40, 180)) if status == "Deferred" else None,
             attendance_pct=attendance, course_progress=progress, counsellor=counsellor)
+        for week, hours in weeks:
+            self.add("attendance_weeks", enrolment_id=enrol["id"], week_start=week, scheduled_hours=HOURS_PER_WEEK,
+                     attended_hours=hours)
+        return enrol
 
-    def attendance(self, status: str) -> int:
-        r = self.rng
-        if status in ("Active", "Visa pending"):
-            band = r.choices([(80, 100), (70, 79), (45, 69)], [76, 17, 7])[0]
-            return r.randint(*band)
-        return {"Completed": r.randint(82, 100), "Withdrawn": r.randint(30, 85), "Deferred": r.randint(60, 95)}[status]
+    def weekly_attendance(self, start: date, stop: date, engagement: float, fade: int) -> list[tuple[date, int]]:
+        """Hours attended in each full week from `start` to `stop`. Over the last `fade` weeks attendance tails off."""
+        weeks = []
+        while start + timedelta(days=7) <= stop:
+            weeks.append(start)
+            start += timedelta(weeks=1)
+        base = 0.45 + 0.55 * engagement
+        out = []
+        for i, week in enumerate(weeks):
+            rate = base + self.rng.gauss(0, 0.06)
+            left = len(weeks) - i
+            if left <= fade:
+                rate *= 1 - 0.6 * (fade - left + 1) / fade
+            out.append((week, round(HOURS_PER_WEEK * min(1.0, max(0.0, rate)))))
+        return out
+
+    @staticmethod
+    def percent(weeks: list[tuple[date, int]]) -> int:
+        return round(100 * sum(h for _, h in weeks) / (HOURS_PER_WEEK * len(weeks))) if weeks else 0
 
     def visa_and_cover(self, student, enrol, offer, first_start, status) -> None:
         r = self.rng
@@ -476,8 +513,10 @@ class Generator:
         for k in range(1, terms):
             dues.append((enrol["start_date"] + timedelta(weeks=13 * k) - timedelta(days=14), f"Tuition, term {k + 1}",
                          round(total / terms, 2)))
-        due_so_far = [d for d in dues if d[0] <= self.today]
+        ref = stop or self.today  # a student who left stops paying from then on
+        due_so_far = [d for d in dues if d[0] <= ref]
         latest = due_so_far[-1][0] if due_so_far else None
+        short = self.rng.choice(due_so_far)[0] if due_so_far else None  # the instalment a short payer part-pays
         for due, desc, amount in dues:
             if stop and due > stop:
                 break
@@ -486,9 +525,9 @@ class Generator:
                 paid, paid_on = 0.0, None
                 if behaviour == "good" and self.rng.random() < 0.15:  # some pay ahead
                     paid, paid_on = amount, self.today - self.days(0, 20)
-            elif due == latest and behaviour == "late" and (self.today - due).days <= 75:
+            elif due == latest and behaviour == "late" and (ref - due).days <= 75:
                 paid, paid_on = 0.0, None
-            elif due == latest and behaviour == "short" and (self.today - due).days <= 75:
+            elif due == short and behaviour == "short":
                 paid, paid_on = round(amount * self.rng.choice([0.25, 0.4, 0.5, 0.6]), 2), due + self.days(0, 7)
             elif behaviour == "late":
                 paid_on = due + self.days(3, 30)
@@ -505,22 +544,23 @@ class Generator:
                 if (self.today - due).days > 30 and self.rng.random() < 0.6:
                     self.note(student, due + self.days(25, 30), "No reply yet to the payment reminder.", channel="Phone")
 
-    def story(self, student, enrol, course, status, attendance) -> None:
+    def story(self, student, enrol, course, status, attendance, struggling, fade) -> None:
         """Contact notes between the start and today. The last-contact gap is chosen, so it can be tuned."""
         r, today, start = self.rng, self.today, enrol["start_date"]
         nxt = r.choice([c["name"] for c in self.tables["courses"] if c["id"] != course["id"]])
         check_ins = r.sample(CHECK_INS, len(CHECK_INS))  # no repeats for one student
         fill = lambda: (check_ins.pop() if check_ins else "Called to check in.").format(  # noqa: E731
             suburb=student["suburb"], next=nxt)
+        every = (25, 70) if struggling else (14, 40)  # days between check-ins: keen students are in touch more
         if start <= today:
             self.note(student, start, f"Attended orientation for the {course['name']}.", channel="In person")
         if status in ("Active", "Visa pending"):
-            gap = r.choices([(1, 29), (30, 44), (45, 100)], [50, 28, 22] if attendance < 80 else [70, 19, 11])[0]
+            gap = r.choices([(1, 29), (30, 44), (45, 100)], [50, 28, 22] if struggling else [70, 19, 11])[0]
             last = max(start, today - self.days(*gap))
             day = start + self.days(7, 25)
             while day < last:
                 self.note(student, day, fill())
-                day += self.days(20, 75)
+                day += self.days(*every)
             if attendance < 80:
                 self.note(student, last - self.days(5, 20), f"Attendance is at {attendance}%, below the 80% "
                           "requirement. Warning letter sent under the attendance policy.", channel="Email")
@@ -539,8 +579,14 @@ class Generator:
                                         f"{r.choice(DEFER_REASONS)}.")
         elif status == "Withdrawn":
             changed = enrol["status_changed_on"]
-            if start < changed:
-                self.note(student, start + (changed - start) / 2, fill())
+            # Those who fade out also go quiet first; those who leave suddenly were in touch until then.
+            last = max(start, changed - (self.days(40, 90) if fade else self.days(1, 25)))
+            day = start + self.days(7, 25)
+            while day < last:
+                self.note(student, day, fill())
+                day += self.days(*every)
+            if start < last:
+                self.note(student, last, fill())
             self.note(student, changed, f"Withdrew from the course: {r.choice(WITHDRAW_REASONS)}.")
             if student["is_international"]:
                 self.note(student, changed + timedelta(days=1), "Change of enrolment reported in PRISMS.",
@@ -548,9 +594,9 @@ class Generator:
         elif status == "Completed":
             end = enrol["expected_end_date"]
             day = start + self.days(20, 60)
-            while day < end - timedelta(days=30):
+            while day < end - timedelta(days=7):
                 self.note(student, day, fill())
-                day += self.days(40, 120)
+                day += self.days(*every)
             self.note(student, end, f"Completed the {course['name']}. Certificate issued.")
             if r.random() < 0.3:
                 self.note(student, end + self.days(5, 60), f"Asked about further study in the {nxt}.")

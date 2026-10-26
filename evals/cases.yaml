@@ -9,6 +9,10 @@
 #   draft_to    address of the email draft
 #   text_has    words that must appear in the reply text (case-insensitive)
 #   no_saved_claim  the text must not claim something was saved or sent
+#   text_lacks  words that must not appear in the reply text
+#   sources     a policy section the answer must cite
+# `judge` (optional, beside `expect`): what a good reply must say, for open-ended text. An LLM judge scores the
+# reply against it once the exact checks pass, and fails it for missing points or invented facts.
 # Every case also checks that no student record was written: only a staff click on Confirm may do that.
 
 # --- lookup ---------------------------------------------------------------
@@ -67,16 +71,24 @@
   category: history
   message: summarise Sofia's history
   expect: {type: answer, student: Sofia Martinez, tools: [get_history], text_has: [visa]}
+  judge: >-
+    Summarises Sofia Martinez's notes: she applied in August, her visa application was lodged on 2 October,
+    her attendance has dipped this month, and she mentioned a part-time job.
 
 - id: history-casual
   category: history
   message: what's been happening with Arjun lately?
   expect: {type: answer, student: Arjun Patel, text_has: [portal]}
+  judge: >-
+    Says Arjun Patel hasn't logged into the student portal for about a month. May mention he started in June and
+    had strong first-term results.
 
 - id: history-background
   category: history
   message: give me the background on Grace before I call her
   expect: {type: answer, student: Grace O'Brien, tools: [get_history], update: null}
+  judge: >-
+    Tells staff Grace O'Brien deferred in August for family reasons and plans to return next February.
 
 # --- at risk --------------------------------------------------------------
 - id: at-risk-direct
@@ -156,11 +168,18 @@
   category: draft
   message: draft a follow-up email for Liam about his overdue payment
   expect: {type: draft_email, draft_to: liam.nguyen@example.com, tools: [draft_email]}
+  judge: >-
+    The email draft is a polite reminder to Liam that his second instalment is overdue (about three weeks), asks him
+    to pay or get in touch (for example about a payment plan), and is signed by the staff member, Eval Staff.
+    It doesn't threaten or invent amounts, dates or penalties.
 
 - id: draft-check-in
   category: draft
   message: write a quick check-in email to Omar
   expect: {type: draft_email, draft_to: omar.haddad@example.com}
+  judge: >-
+    The email draft is a short, friendly check-in with Omar, asking how he is going and offering help, signed by
+    Eval Staff. It doesn't invent problems with his record.
 
 - id: draft-typo-name
   category: draft
@@ -340,7 +359,7 @@
   category: multi-turn
   before: ["who's most at risk?", "tell me more about the top one"]
   message: draft them a supportive email
-  expect: {type: draft_email, draft_to: liam.nguyen@example.com}
+  expect: {type: draft_email, draft_to: sofia.m@example.com}
 
 - id: multi-ambiguous-after-at-risk
   category: multi-turn

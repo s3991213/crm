@@ -52,7 +52,8 @@ describe("at-risk", () => {
     expect(riskPercent(0.84)).toBe(84);
     expect(riskPercent(84)).toBe(84);
     expect(riskLevel(84).label).toBe("High");
-    expect(riskLevel(45).label).toBe("Medium");
+    expect(riskLevel(45).label).toBe("High");
+    expect(riskLevel(25).label).toBe("Medium");
     expect(riskLevel(10).label).toBe("Low");
   });
 });

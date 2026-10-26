@@ -74,7 +74,7 @@ export function AtRiskTable({ students, onPick, disabled }:
           })}
         </tbody>
       </table>
-      <p className="footnote">Tap a name to see a summary of that student.</p>
+      <p className="footnote">Risk is the chance of withdrawing in the next 3 months. Tap a name to see a summary of that student.</p>
     </div>
   );
 }

@@ -90,9 +90,10 @@ export function riskPercent(score: number): number {
   return Math.round(n <= 1 ? n * 100 : n);
 }
 
+// The score is the chance of withdrawing in the next 3 months; the backend flags anyone from 10%.
 export function riskLevel(p: number): { label: string; tone: string } {
-  if (p >= 70) return { label: "High", tone: "bad" };
-  if (p >= 40) return { label: "Medium", tone: "warn" };
+  if (p >= 40) return { label: "High", tone: "bad" };
+  if (p >= 20) return { label: "Medium", tone: "warn" };
   return { label: "Low", tone: "" };
 }
 

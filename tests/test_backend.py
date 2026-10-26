@@ -10,11 +10,15 @@ from fastapi.testclient import TestClient
 from backend import app as backend_app
 from backend.agent import CONFIRM_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT
 from backend.llm import Completion, LLMError, ToolCall, strip_thinking
+from backend.risk_model import RiskModel
 from backend.store import Store, StoreError
 
 SEED = Path(backend_app.__file__).parent / "seed.json"
 STAFF = {"X-Staff-Name": "Test Staff"}
 CARD_KEYS = {"name", "status", "course", "last_contact", "payment_status"}
+# Fixed weights, so retraining backend/risk_model.json doesn't change these tests.
+RISK = RiskModel({"attendance_shortfall": 1.48, "months_since_contact": 0.53, "payment_overdue": 0.67,
+                  "payment_partial": 1.27}, intercept=-7.61, threshold=0.1)
 
 
 def call(_tool, **args):
@@ -42,7 +46,7 @@ class FakeLLM:
 
 @pytest.fixture
 def store():
-    s = Store(":memory:", today=lambda: date(2026, 10, 25))
+    s = Store(":memory:", today=lambda: date(2026, 10, 25), risk_model=RISK)
     s.seed_if_empty(SEED)
     return s
 
@@ -81,9 +85,16 @@ def test_find_handles_partial_possessive_and_ambiguous(store):
 
 def test_risk_scores_are_explained(store):
     rows = store.at_risk()
-    assert [r["name"] for r in rows] == ["Liam Nguyen", "Priya Kapoor", "Sofia Martinez"]
-    assert rows[0]["reasons"] == ["No contact in 53 days", "Payment overdue"]
+    assert [r["name"] for r in rows] == ["Sofia Martinez", "Priya Kapoor", "Liam Nguyen"]
+    assert rows[0] == {"name": "Sofia Martinez", "risk_score": 0.42, "reasons": ["Attendance at 62%", "Only partly paid"]}
+    assert rows[2]["reasons"] == ["Attendance at 71%", "No contact in 53 days"]
     assert all(len(r["reasons"]) <= 2 for r in rows)
+
+
+def test_on_track_students_get_no_reasons(store):
+    mei = store.find("Mei Chen")[0]
+    score, reasons = store.risk(mei)
+    assert score < 0.01 and reasons == []
 
 
 def test_inactive_students_are_never_at_risk(store):
@@ -388,8 +399,22 @@ def test_draft_address_comes_from_record(store, traces):
 def test_at_risk_via_chat_and_endpoint(store, traces):
     client, _ = client_for(store, [call("list_at_risk")], "These students may need attention.")
     data = chat(client, "who's at risk?")
-    assert data["type"] == "at_risk" and data["students"][0]["name"] == "Liam Nguyen"
+    assert data["type"] == "at_risk" and data["students"][0]["name"] == "Sofia Martinez"
     assert client.get("/at-risk").json()["students"] == data["students"]
+
+
+def test_at_risk_table_is_capped_and_the_model_only_gets_names(store, traces):
+    lots = Store(":memory:", today=lambda: date(2026, 10, 25), risk_model=RISK)
+    lots.load_students([{"name": f"Student {chr(65 + i // 26)}{chr(65 + i % 26)}", "status": "Active", "course": "IT",
+                         "email": f"s{i}@example.com", "payment_status": "Overdue", "attendance": 50 + i % 20,
+                         "last_contact": "2026-08-01", "history": ""} for i in range(30)])
+    client, llm = client_for(lots, [call("list_at_risk")], "30 students were flagged; the top 20 are below.")
+    data = chat(client, "who's at risk?")
+    assert len(data["students"]) == 20
+    result = json.loads(llm.seen[1][-1]["content"])
+    assert set(result) == {"flagged", "in_table", "note"}
+    assert result["flagged"] == 30 and len(result["in_table"]) == 20
+    assert len(client.get("/at-risk").json()["students"]) == 30
 
 
 def test_bad_tool_arguments_go_back_to_model(store, traces):
