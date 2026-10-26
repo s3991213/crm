@@ -57,6 +57,14 @@ test("look up a student, and open one from the at-risk list", async ({ page }) =
   await expect(page.locator(".card__title").last()).toContainText("Liam Nguyen");
 });
 
+test("cooling leads show as a table from the welcome screen", async ({ page }) => {
+  await signIn(page);
+  await page.getByText("Show cooling leads").click();
+  await expect(page.getByText(/enquiries have gone quiet/)).toBeVisible();
+  await expect(page.locator(".table")).toContainText("Ji-ho Park");
+  await expect(page.locator(".table")).toContainText("No reply for 25 days after 2 follow-ups");
+});
+
 test("a change is saved only on Confirm, logged once, and Cancel saves nothing", async ({ page }) => {
   await signIn(page);
   await say(page, "change Arjun's status to Withdrawn");

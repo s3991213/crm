@@ -19,7 +19,7 @@ The browser only talks to the staff server (`frontend/server.py`), never to the 
 
 The model chooses *which* tool to call. The code decides what each tool may do:
 
-- Six tools: `find_student`, `get_history`, `list_at_risk`, `stage_update`, `draft_email`, `search_policies`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
+- Seven tools: `find_student`, `get_history`, `list_at_risk`, `list_cooling_leads`, `stage_update`, `draft_email`, `search_policies`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
 - Fields and values are checked against allowed lists. A new email address must be one staff actually typed.
 - One change per request: if the model tries a second, neither is staged and staff are asked.
 - A name that matches several students, or none, comes back as a question, never a guess. A misspelt name gets a "did you mean …?" question. A change is only staged for a student staff have clearly named in the chat ("Priya" isn't enough when there are two).
@@ -56,7 +56,7 @@ memory. A reranker can be added if the policy set grows and the retrieval eval d
 
 The college's real records will come from its own MySQL database. Until we have access, `college_db/` models one:
 
-- `schema.sql`: 11 tables that run unchanged on MySQL 8 and SQLite. The fields follow what an Australian
+- `schema.sql`: 13 tables that run unchanged on MySQL 8 and SQLite. The fields follow what an Australian
   college with international students (CRICOS) has to keep, and what education agents' CRMs track:
   - `students`: personal and contact details, passport, USI (vocational students), address, emergency contact,
     and the agent who referred them.
@@ -66,6 +66,8 @@ The college's real records will come from its own MySQL database. Until we have 
   - `visas` (subclass 500), `health_cover` (OSHC), `english_tests` (IELTS, PTE…), `education_history`.
   - `fee_instalments` (term-by-term tuition, what's paid and when), `contact_notes` (dated staff notes).
   - `agents` (agency, country, commission) and `courses` (national code, CRICOS code, length, fees).
+  - `enquiries` and `enquiry_notes`: people who asked about a course but haven't enrolled, and every contact
+    with them, marked as from them or from the college.
 - `generate.py` makes as many students as you ask for (600 by default), with realistic names for 15 source
   countries plus domestic students, pathway students (English course, then a diploma), deferrals, withdrawals,
   late payers, low attendance with warning letters, and two planted prompt injections. All of it is made up.
@@ -82,6 +84,18 @@ mysql -u <user> -p <database> < college_db/out/college.sql   # load it into MySQ
 ```
 
 The evals keep using the 12 hand-written students in `backend/seed.json`, since their cases name them.
+
+## Cooling leads
+
+Enquiries are imported as leads (`backend/source_import.py`). A lead is *cooling* when someone who showed real
+interest (replied after enquiring, applied, or got an offer) hasn't been heard from for 14 to 120 days; after that
+it's treated as lost rather than listed. The list puts the furthest along first (an offer going cold matters most),
+then those who went quiet most recently, with how many follow-ups have gone unanswered. It's a plain rule in
+`Store.cooling_leads()`, not a model: there's no history of won and lost leads to learn from yet.
+
+Staff see it from the "Show cooling leads" button or by asking in chat; tapping a name drafts a follow-up email.
+`find_student`, `get_history` and `draft_email` work for leads too, and their card says "Enquiry". Leads can't be
+changed through the assistant.
 
 ## At-risk model
 
@@ -123,6 +137,7 @@ another, so it can be lenient with its own mistakes.
 - **Chat.** Type a request in plain English. While the backend works, a short "Working on it…" line shows.
 - **Student card.** When a reply is about one student, a compact card (name, status, course, last contact, payment) appears above the answer.
 - **At-risk students.** A welcome-screen button shows a table sorted by risk (the chance of withdrawing in the next 3 months, from the at-risk model), with its top two reasons for each student. In chat the table shows the top 20. Tapping a name asks for that student's summary.
+- **Cooling leads.** A welcome-screen button shows enquiries that have gone quiet, with their stage and how long since they last replied. Tapping a name drafts a follow-up.
 - **Policy answers.** Questions about the college's rules are answered from its policy documents, with a "From: …" line naming the policy and section.
 - **Draft emails.** Drafts appear in editable boxes with a **Copy** button. Nothing is ever sent from here.
 - **Confirmed changes.** Any change to a record shows a card (student, field, old value → new value) with **Confirm** and **Cancel**. Nothing is saved until Confirm is clicked. The buttons disappear after one click, so a change can't be saved twice.
@@ -252,7 +267,7 @@ Response (every field except `type` is optional):
 
 ```jsonc
 {
-  "type": "answer | clarify | confirm_update | at_risk | draft_email",
+  "type": "answer | clarify | confirm_update | at_risk | cooling_leads | draft_email",
   "text": "Reply shown to staff (markdown)",
 
   // Any reply about one student: shown as a card above the text
@@ -264,6 +279,9 @@ Response (every field except `type` is optional):
   // type = at_risk
   "students": [{"name": "", "risk_score": 0.84, "reasons": ["", ""]}],
 
+  // type = cooling_leads: enquiries gone quiet, furthest along first
+  "leads": [{"name": "", "status": "Offer sent", "course": "", "days_quiet": 25, "reason": ""}],
+
   // type = draft_email
   "draft": {"to": "", "subject": "", "body": ""},
 
@@ -273,6 +291,10 @@ Response (every field except `type` is optional):
 ```
 
 Use `type: "clarify"` with a short question in `text` whenever the intent or the student is unclear. An unknown `type`, or a reply with no text, makes the frontend ask staff to rephrase.
+
+### `GET /cooling-leads`
+
+Returns `{"text": "optional intro", "leads": [...]}` in the same shape as above, for the "Show cooling leads" button.
 
 ### `GET /at-risk`
 

@@ -137,6 +137,7 @@ def test_chat_waits_for_the_first_password_change(client, backend_calls):
     r = say(client, "find Liam")
     assert r.status_code == 403 and "password first" in r.json()["detail"]
     assert client.get("/api/at-risk").status_code == 403
+    assert client.get("/api/cooling-leads").status_code == 403
     assert backend_calls == []
 
 

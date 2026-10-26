@@ -73,6 +73,9 @@ def chat(body: ChatIn, x_staff_name: str = Header("Unknown")):
     if "at risk" in text or "at-risk" in text:
         return at_risk()
 
+    if "lead" in text or "enquir" in text:
+        return cooling_leads()
+
     if "policy" in text or "refund" in text:
         return {"type": "answer",
                 "text": "If a student withdraws 28 days or more before the course starts, 70% of the tuition paid "
@@ -128,6 +131,20 @@ def chat(body: ChatIn, x_staff_name: str = Header("Unknown")):
         return {"type": "answer", "text": f"Here's {s['name']}'s record.", "student": card(s)}
 
     return {"type": "clarify", "text": "Sorry, I'm not sure what you need. Is this about a particular student?"}
+
+
+LEADS = [
+    {"name": "Ji-ho Park", "status": "Offer sent", "course": "Diploma of Business", "days_quiet": 25,
+     "reason": "No reply for 25 days after 2 follow-ups"},
+    {"name": "Daniel Okoro", "status": "Contacted", "course": "Certificate III in Carpentry", "days_quiet": 21,
+     "reason": "No reply for 21 days after 1 follow-up"},
+]
+
+
+@app.get("/cooling-leads")
+def cooling_leads():
+    return {"type": "cooling_leads", "text": f"{len(LEADS)} enquiries have gone quiet, furthest along first.",
+            "leads": LEADS}
 
 
 @app.get("/at-risk")

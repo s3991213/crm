@@ -70,6 +70,12 @@ def create_app(store: Store, llm, no_think: bool = False, policies: PolicyIndex 
         return {"type": "at_risk", "text": f"{len(rows)} students may need attention, highest risk first.",
                 "students": rows}
 
+    @app.get("/cooling-leads")
+    def cooling_leads():
+        rows = store.cooling_leads()
+        return {"type": "cooling_leads", "text": f"{len(rows)} enquiries have gone quiet, furthest along first.",
+                "leads": rows}
+
     @app.post("/updates/{update_id}/confirm")
     def confirm(update_id: str, body: StaffIn, x_staff_name: str = Header("Unknown")):
         try:
@@ -100,7 +106,7 @@ def write_trace(trace: dict) -> None:
 def default_app() -> FastAPI:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     store = Store(DB_PATH)
-    store.seed_if_empty(HERE / "seed.json")
+    store.seed_if_empty(HERE / "seed.json", HERE / "seed_leads.json")
     policies = PolicyIndex(OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY), cache=POLICY_VECTORS)
     return create_app(store, OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY), no_think=LLM_NO_THINK,
                       policies=policies)

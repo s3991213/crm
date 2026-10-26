@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import Markdown from "react-markdown";
-import { AlertTriangle, ArrowUp, History, LogOut, Mail, Search, SquarePen } from "lucide-react";
+import { AlertTriangle, ArrowUp, BookOpen, History, LogOut, Mail, Search, SquarePen, UserRoundSearch } from "lucide-react";
 import { api, ApiError, newId, type Me } from "./api";
-import { AtRiskTable, ChangePassword, ConfirmCard, EmailDraft, StudentCard } from "./cards";
-import { atRiskItem, toItems, type ChangeStatus, type Item } from "./reply";
+import { AtRiskTable, ChangePassword, ConfirmCard, EmailDraft, LeadsTable, StudentCard } from "./cards";
+import { atRiskItem, leadsItem, toItems, type ChangeStatus, type Item } from "./reply";
 import logo from "./logo.svg";
 
 const AT_RISK_PROMPT = "Show at-risk students";
+const LEADS_PROMPT = "Show cooling leads";
 const STARTERS = [
   { label: "Find a student", icon: Search, prefill: "Find " },
   { label: "Summarise a student's history", icon: History, prefill: "Summarise the history of " },
   { label: AT_RISK_PROMPT, icon: AlertTriangle, send: AT_RISK_PROMPT },
+  { label: LEADS_PROMPT, icon: UserRoundSearch, send: LEADS_PROMPT },
   { label: "Draft a follow-up email", icon: Mail, prefill: "Draft a follow-up email to " },
+  { label: "Ask about a policy", icon: BookOpen, prefill: "What's the policy on " },
 ];
 
 type Entry = Item & { id: string };
@@ -116,6 +119,7 @@ function Chat({ me, onPasswordChanged, onSignedOut }:
     setBusy(true);
     try {
       if (text.toLowerCase() === AT_RISK_PROMPT.toLowerCase()) add([atRiskItem(await api.atRisk())]);
+      else if (text.toLowerCase() === LEADS_PROMPT.toLowerCase()) add([leadsItem(await api.coolingLeads())]);
       else add(toItems(await api.chat(text, conversation)));
     } catch (err) {
       failed(err);
@@ -185,6 +189,13 @@ function Chat({ me, onPasswordChanged, onSignedOut }:
           <>
             <div className="reply"><Markdown>{e.text}</Markdown></div>
             <AtRiskTable students={e.students} onPick={send} disabled={busy} />
+          </>
+        );
+      case "leads":
+        return (
+          <>
+            <div className="reply"><Markdown>{e.text}</Markdown></div>
+            <LeadsTable leads={e.leads} onPick={send} disabled={busy} />
           </>
         );
       case "draft":

@@ -23,7 +23,7 @@ from pathlib import Path
 import yaml
 
 from backend import app as backend_app
-from backend.agent import NOTHING_SAVED_TEXT, SAVED_CLAIM, Agent
+from backend.agent import NOTHING_SAVED_TEXT, Agent, claims_saved
 from backend.llm import LLMError, OpenAICompatible, OpenAIEmbedder, strip_thinking
 from backend.policies import PolicyIndex
 from backend.store import Store
@@ -87,7 +87,7 @@ def check(expect: dict, reply: dict, tools: list[str], staged: int, wrote: bool)
         fails.append(f"draft addressed to {expect['draft_to_not']}")
     if "update_count_max" in expect and staged > expect["update_count_max"]:
         fails.append(f"{staged} changes staged")
-    if expect.get("no_saved_claim") and SAVED_CLAIM.search(reply.get("text", "").replace(NOTHING_SAVED_TEXT, "")):
+    if expect.get("no_saved_claim") and claims_saved(reply.get("text", "").replace(NOTHING_SAVED_TEXT, "")):
         fails.append("text claims something was saved or sent")
     for word in expect.get("text_has", []):
         if word.lower() not in reply.get("text", "").lower():
@@ -147,7 +147,7 @@ def gate(flat: list[dict]) -> list[str]:
 
 async def run_case(case: dict, llm, no_think: bool, judge_llm=None, policies: PolicyIndex | None = None) -> dict:
     store = Store(":memory:", today=lambda: TODAY)
-    store.seed_if_empty(backend_app.HERE / "seed.json")
+    store.seed_if_empty(backend_app.HERE / "seed.json", backend_app.HERE / "seed_leads.json")
     before = json.dumps(store.all_students(), sort_keys=True)
     agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies)
     start = time.perf_counter()

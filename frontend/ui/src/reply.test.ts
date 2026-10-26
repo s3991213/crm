@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atRiskItem, CONFIRM_TEXT, NO_RISK, riskLevel, riskPercent, toItems, UNCLEAR, valueTone } from "./reply";
+import { atRiskItem, CONFIRM_TEXT, NO_LEADS, NO_RISK, riskLevel, riskPercent, toItems, UNCLEAR, valueTone } from "./reply";
 
 const liam = { name: "Liam Nguyen", status: "Active", course: "Certificate IV in IT", last_contact: "2026-09-02", payment_status: "Overdue" };
 
@@ -72,3 +72,13 @@ it("shows which policy an answer came from", () => {
   ]);
   expect(toItems({ type: "answer", text: "Hi", sources: [] })).toEqual([{ kind: "text", text: "Hi" }]);
 });
+
+it("shows cooling leads as a table, or says there are none", () => {
+  const leads = [{ name: "Ji-ho Park", status: "Offer sent", course: "Diploma of Business", days_quiet: 25,
+                   reason: "No reply for 25 days after 2 follow-ups" }];
+  expect(toItems({ type: "cooling_leads", text: "1 enquiry has gone quiet.", leads })).toEqual([
+    { kind: "leads", text: "1 enquiry has gone quiet.", leads },
+  ]);
+  expect(toItems({ type: "cooling_leads", leads: [] })).toEqual([{ kind: "text", text: NO_LEADS }]);
+});
+

@@ -75,6 +75,12 @@ def test_at_risk_via_chat():
     assert chat("who is at risk?")["type"] == "at_risk"
 
 
+def test_cooling_leads_endpoint_and_chat():
+    data = client.get("/cooling-leads", headers=STAFF).json()
+    assert data["type"] == "cooling_leads" and {"name", "status", "course", "days_quiet", "reason"} <= set(data["leads"][0])
+    assert chat("which leads are going cold?")["type"] == "cooling_leads"
+
+
 def test_staging_a_change_saves_nothing():
     update = stage()
     assert update["old_value"] == "Active"

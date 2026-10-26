@@ -21,6 +21,12 @@ EDITABLE = {"status": STATUSES, "payment_status": PAYMENT_STATUSES, "course": No
 FIELD_LABELS = {"status": "Status", "payment_status": "Payment status", "course": "Course", "email": "Email"}
 # A proposed change can be confirmed for this long; after that staff ask again, so a forgotten card can't be clicked.
 PENDING_TTL = timedelta(minutes=60)
+# Enquiries still open, in order of how far along they are.
+LEAD_STAGES = ["New", "Contacted", "Application received", "Offer sent"]
+# A lead is cooling when someone who had shown real interest hasn't been heard from for this long. After
+# COLD_AFTER they're no longer listed: by then it's a lost lead, not one to catch.
+COOLING_AFTER = timedelta(days=14)
+COLD_AFTER = timedelta(days=120)
 # Chat memory is kept this long after the last message, so a restart doesn't make the assistant forget.
 CONVERSATION_TTL = timedelta(days=1)
 
@@ -36,6 +42,10 @@ create table if not exists pending_updates (
 create table if not exists audit (
     id integer primary key autoincrement, at text, staff text, action text,
     student_id integer, field text, old_value text, new_value text
+);
+create table if not exists leads (
+    id integer primary key, name text not null, email text, course text, source text, status text,
+    received text, last_heard text, replies integer, follow_ups integer, history text
 );
 create table if not exists conversations (
     session_id text primary key, messages text not null, updated_at text not null
@@ -58,7 +68,12 @@ class Store:
 
     # --- setup -------------------------------------------------------------
 
-    def seed_if_empty(self, seed_file: str | Path) -> None:
+    def seed_if_empty(self, seed_file: str | Path, leads_file: str | Path | None = None) -> None:
+        if leads_file and not self.db.execute("select count(*) from leads").fetchone()[0]:
+            self.load_leads([
+                {**lead, "received": (self.today() - timedelta(days=lead.pop("received_days_ago"))).isoformat(),
+                 "last_heard": (self.today() - timedelta(days=lead.pop("last_heard_days_ago"))).isoformat()}
+                for lead in json.loads(Path(leads_file).read_text())])
         if self.db.execute("select count(*) from students").fetchone()[0]:
             return
         self.load_students([
@@ -73,6 +88,17 @@ class Store:
             "insert into students (id, name, status, course, email, payment_status, attendance, last_contact, history)"
             " values (:id, :name, :status, :course, :email, :payment_status, :attendance, :last_contact, :history)",
             [{"id": None, **r} for r in rows])
+        self.db.commit()
+        return len(rows)
+
+    def load_leads(self, rows: list[dict]) -> int:
+        """Fill an empty leads table. Leads are only ever read: nothing in the chat changes them."""
+        if self.db.execute("select count(*) from leads").fetchone()[0]:
+            raise StoreError("The leads table already has records, so nothing was loaded.")
+        self.db.executemany(
+            "insert into leads (id, name, email, course, source, status, received, last_heard, replies, follow_ups,"
+            " history) values (:id, :name, :email, :course, :source, :status, :received, :last_heard, :replies,"
+            " :follow_ups, :history)", [{"id": None, **r} for r in rows])
         self.db.commit()
         return len(rows)
 
@@ -127,6 +153,42 @@ class Store:
             if score >= self.risk_model.threshold:
                 rows.append({"name": s["name"], "risk_score": round(score, 2), "reasons": reasons[:2]})
         return sorted(rows, key=lambda r: r["risk_score"], reverse=True)
+
+    def all_leads(self) -> list[dict]:
+        return [dict(r) for r in self.db.execute("select * from leads order by id")]
+
+    def find_lead(self, name: str) -> list[dict]:
+        """Leads whose name matches, the same way `find` matches students."""
+        words = [w[:-2] if w.endswith(("'s", "’s")) else w for w in name.lower().split()]
+        query, words = " ".join(words), set(words)
+        rows = self.all_leads()
+        exact = [r for r in rows if r["name"].lower() == query]
+        return exact or [r for r in rows if query in r["name"].lower() or words & set(r["name"].lower().split())]
+
+    @staticmethod
+    def lead_card(lead: dict) -> dict:
+        """Shown in the student card's place: the status says it's an enquiry."""
+        return {"name": lead["name"], "status": f"Enquiry: {lead['status']}", "course": lead["course"],
+                "last_contact": lead["last_heard"], "payment_status": None}
+
+    def cooling_leads(self) -> list[dict]:
+        """Open enquiries from people who showed real interest (replied, applied or got an offer) but haven't been
+        heard from in 14 to 120 days. Furthest along first (an offer going cold matters most), then the most
+        recently gone quiet, who are the easiest to win back."""
+        today, rows = self.today(), []
+        for lead in self.all_leads():
+            if lead["status"] not in LEAD_STAGES:
+                continue
+            stage = LEAD_STAGES.index(lead["status"])
+            quiet = (today - date.fromisoformat(lead["last_heard"])).days
+            interested = lead["replies"] > 0 or stage >= LEAD_STAGES.index("Application received")
+            if interested and COOLING_AFTER.days <= quiet <= COLD_AFTER.days:
+                chased = lead["follow_ups"]
+                reason = f"No reply for {quiet} days" + (f" after {chased} follow-up{'s' * (chased > 1)}" if chased else "")
+                rows.append({"name": lead["name"], "status": lead["status"], "course": lead["course"],
+                             "days_quiet": quiet, "reason": reason, "_stage": stage})
+        rows.sort(key=lambda r: (-r["_stage"], r["days_quiet"]))
+        return [{k: v for k, v in r.items() if k != "_stage"} for r in rows]
 
     # --- staged changes ----------------------------------------------------
 

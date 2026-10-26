@@ -8,6 +8,8 @@
 --
 -- Runs unchanged on MySQL 8 and SQLite. All data made by college_db/generate.py is synthetic.
 
+DROP TABLE IF EXISTS enquiry_notes;
+DROP TABLE IF EXISTS enquiries;
 DROP TABLE IF EXISTS contact_notes;
 DROP TABLE IF EXISTS fee_instalments;
 DROP TABLE IF EXISTS health_cover;
@@ -168,9 +170,41 @@ CREATE TABLE contact_notes (
     FOREIGN KEY (student_id) REFERENCES students (id)
 );
 
+-- People who asked about a course but haven't enrolled (yet): leads, from the website, agents, expos or walk-ins.
+CREATE TABLE enquiries (
+    id                INTEGER PRIMARY KEY,
+    given_name        VARCHAR(60)  NOT NULL,
+    family_name       VARCHAR(60)  NOT NULL,
+    email             VARCHAR(160) NOT NULL UNIQUE,
+    phone             VARCHAR(30),
+    country           VARCHAR(60)  NOT NULL,
+    course_id         INTEGER      NOT NULL,            -- the course they asked about
+    agent_id          INTEGER,
+    source            VARCHAR(20)  NOT NULL CHECK (source IN ('Website', 'Agent', 'Expo', 'Walk-in', 'Referral')),
+    received_on       DATE         NOT NULL,
+    status            VARCHAR(30)  NOT NULL
+        CHECK (status IN ('New', 'Contacted', 'Application received', 'Offer sent', 'Lost')),
+    status_changed_on DATE         NOT NULL,
+    FOREIGN KEY (course_id) REFERENCES courses (id),
+    FOREIGN KEY (agent_id) REFERENCES agents (id)
+);
+
+-- Every contact with an enquirer. `direction` says who reached out: 'In' from them, 'Out' from the college.
+CREATE TABLE enquiry_notes (
+    id         INTEGER PRIMARY KEY,
+    enquiry_id INTEGER     NOT NULL,
+    noted_on   DATE        NOT NULL,
+    staff      VARCHAR(60) NOT NULL,
+    channel    VARCHAR(20) NOT NULL CHECK (channel IN ('Phone', 'Email', 'In person', 'SMS', 'Agent')),
+    direction  CHAR(3)     NOT NULL CHECK (direction IN ('In', 'Out')),
+    note       TEXT        NOT NULL,
+    FOREIGN KEY (enquiry_id) REFERENCES enquiries (id)
+);
+
 CREATE INDEX idx_students_family_name ON students (family_name);
 CREATE INDEX idx_enrolments_student ON enrolments (student_id);
 CREATE INDEX idx_attendance_weeks_enrolment ON attendance_weeks (enrolment_id);
+CREATE INDEX idx_enquiry_notes_enquiry ON enquiry_notes (enquiry_id);
 CREATE INDEX idx_visas_student ON visas (student_id);
 CREATE INDEX idx_health_cover_student ON health_cover (student_id);
 CREATE INDEX idx_english_tests_student ON english_tests (student_id);

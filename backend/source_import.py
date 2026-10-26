@@ -10,6 +10,9 @@ with the fields the assistant works with:
 - last_contact: the newest contact note
 - history: every contact note, oldest first, one dated line each
 
+Enquiries (people who asked about a course but haven't enrolled) become leads, with when we last heard from them
+and how many follow-ups have gone unanswered since.
+
 Only reads the source, with plain SELECTs on any DB-API connection (sqlite3 here, PyMySQL for MySQL).
 """
 
@@ -62,3 +65,32 @@ def student_rows(conn, today: date) -> list[dict]:
 def import_students(conn, store, today: date | None = None) -> int:
     """Load the source's students into an empty crm.db. Returns how many were loaded."""
     return store.load_students(student_rows(conn, today or date.today()))
+
+
+def lead_rows(conn) -> list[dict]:
+    courses = {c["id"]: c["name"] for c in _rows(conn, "SELECT id, name FROM courses")}
+    notes: dict[int, list[dict]] = {}
+    for n in _rows(conn, "SELECT enquiry_id, noted_on, direction, note FROM enquiry_notes "
+                         "ORDER BY enquiry_id, noted_on, id"):
+        notes.setdefault(n["enquiry_id"], []).append(n)
+    rows = []
+    for e in _rows(conn, "SELECT id, given_name, family_name, email, course_id, source, received_on, status "
+                         "FROM enquiries ORDER BY id"):
+        ns = notes.get(e["id"], [])
+        heard = [n for n in ns if n["direction"] == "In"]
+        last_heard = _date(heard[-1]["noted_on"]) if heard else _date(e["received_on"])
+        rows.append({
+            "id": e["id"], "name": f"{e['given_name']} {e['family_name']}", "email": e["email"],
+            "course": courses[e["course_id"]], "source": e["source"], "status": e["status"],
+            "received": _date(e["received_on"]).isoformat(), "last_heard": last_heard.isoformat(),
+            "replies": max(0, len(heard) - 1),  # messages from them after the first enquiry
+            "follow_ups": sum(1 for n in ns if n["direction"] == "Out" and _date(n["noted_on"]) > last_heard),
+            "history": "\n".join(f"{_date(n['noted_on']).isoformat()} ({'them' if n['direction'] == 'In' else 'us'}): "
+                                 f"{n['note']}" for n in ns),
+        })
+    return rows
+
+
+def import_leads(conn, store) -> int:
+    """Load the source's enquiries into an empty leads table. Returns how many were loaded."""
+    return store.load_leads(lead_rows(conn))

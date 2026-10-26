@@ -23,6 +23,14 @@ export interface RiskRow {
   reasons?: string[];
 }
 
+export interface LeadRow {
+  name: string;
+  status?: string;
+  course?: string;
+  days_quiet?: number;
+  reason?: string;
+}
+
 export interface Draft {
   to: string;
   subject: string;
@@ -41,6 +49,7 @@ export interface Reply {
   student?: Student;
   update?: Update;
   students?: RiskRow[];
+  leads?: LeadRow[];
   draft?: Draft;
 }
 
@@ -52,6 +61,7 @@ export type Item =
   | { kind: "student"; student: Student }
   | { kind: "change"; update: Update; text: string; status: ChangeStatus }
   | { kind: "atRisk"; text: string; students: RiskRow[] }
+  | { kind: "leads"; text: string; leads: LeadRow[] }
   | { kind: "draft"; draft: Draft; text: string }
   | { kind: "password"; forced: boolean };
 
@@ -60,6 +70,13 @@ export const UNCLEAR =
   "I'm not quite sure what you'd like me to do. Could you say it another way? " +
   'For example: *"Show me Priya Sharma\'s record"*.';
 export const NO_RISK = "Good news: no students are flagged as at risk right now.";
+export const NO_LEADS = "No enquiries have gone quiet right now.";
+
+export function leadsItem(reply: Reply): Item {
+  const leads = reply.leads ?? [];
+  if (!leads.length) return { kind: "text", text: NO_LEADS };
+  return { kind: "leads", text: reply.text?.trim() || `${leads.length} enquiries have gone quiet.`, leads };
+}
 
 export function atRiskItem(reply: Reply): Item {
   const students = [...(reply.students ?? [])]
@@ -80,6 +97,8 @@ export function toItems(reply: Reply): Item[] {
     items.push({ kind: "change", update: reply.update, text: text || CONFIRM_TEXT, status: "pending" });
   } else if (reply.type === "at_risk") {
     items.push(atRiskItem(reply));
+  } else if (reply.type === "cooling_leads") {
+    items.push(leadsItem(reply));
   } else if (reply.type === "draft_email" && reply.draft) {
     items.push({ kind: "draft", draft: reply.draft, text: text || "Here's a draft. Edit anything you like, then copy it into your email." });
   } else if (reply.type === "change_password") {

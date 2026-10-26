@@ -234,6 +234,12 @@ async def at_risk(request: Request):
     return await backend(api.at_risk, staff.name)
 
 
+@app.get("/api/cooling-leads")
+async def cooling_leads(request: Request):
+    staff = ready_staff(request)
+    return await backend(api.cooling_leads, staff.name)
+
+
 async def resolve(update_id: str, request: Request, confirmed: bool) -> dict:
     staff = ready_staff(request)
     u = state.take_pending(update_id, staff.username)  # first: a double click can't save twice

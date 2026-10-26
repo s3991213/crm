@@ -175,6 +175,7 @@ h1 { font-size: 1.5rem; font-weight: 600; margin: 0; }
 
 .footnote { font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin: 0; }
 .reply .sources { margin-top: 0.5rem; }
+.muted { font-size: 0.8125rem; color: hsl(var(--muted-foreground)); }
 .label {
   display: flex; align-items: center; gap: 0.4rem;
   font-size: 0.85rem; font-weight: 600;

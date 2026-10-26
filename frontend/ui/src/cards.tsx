@@ -4,7 +4,7 @@ import {
   Loader2, Wallet, X,
 } from "lucide-react";
 import { api, ApiError } from "./api";
-import { riskLevel, riskPercent, valueTone, type ChangeStatus, type Draft, type RiskRow, type Student, type Update } from "./reply";
+import { riskLevel, riskPercent, valueTone, type ChangeStatus, type Draft, type LeadRow, type RiskRow, type Student, type Update } from "./reply";
 
 function Pill({ value }: { value: string }) {
   const tone = valueTone(value);
@@ -36,6 +36,35 @@ export function StudentCard({ student }: { student: Student }) {
           <dd>{payment_status ? <Pill value={payment_status} /> : "Not recorded"}</dd>
         </div>
       </dl>
+    </div>
+  );
+}
+
+export function LeadsTable({ leads, onPick, disabled }:
+  { leads: LeadRow[]; onPick: (text: string) => void; disabled: boolean }) {
+  return (
+    <div className="card card--flush">
+      <table className="table">
+        <thead>
+          <tr><th>Enquiry</th><th>Stage</th><th>Why it's cooling</th></tr>
+        </thead>
+        <tbody>
+          {leads.map((l) => (
+            <tr key={l.name}>
+              <td data-label="Enquiry">
+                <button type="button" className="link" disabled={disabled} title={`Draft a follow-up to ${l.name}`}
+                        onClick={() => onPick(`Draft a friendly follow-up email to ${l.name}`)}>
+                  {l.name}
+                </button>
+                {l.course && <div className="muted">{l.course}</div>}
+              </td>
+              <td data-label="Stage"><span className="pill">{l.status}</span></td>
+              <td data-label="Why it's cooling">{l.reason}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="footnote">People who showed interest but haven't replied for 2 weeks or more. Tap a name to draft a follow-up.</p>
     </div>
   );
 }

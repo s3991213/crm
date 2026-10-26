@@ -1,0 +1,23 @@
+[
+  {"name": "Ji-ho Park", "email": "jiho.park@example.com", "course": "Diploma of Business", "source": "Agent",
+   "status": "Offer sent", "received_days_ago": 60, "last_heard_days_ago": 25, "replies": 2, "follow_ups": 2,
+   "history": "Referred by Study Link Seoul: interested in the Diploma of Business. Asked about fees and the next intake. Application received. Letter of offer sent. Asked whether the offer could start in February. Two follow-up emails since, no reply."},
+  {"name": "Ananya Iyer", "email": "ananya.iyer@example.com", "course": "Diploma of Nursing", "source": "Website",
+   "status": "Application received", "received_days_ago": 45, "last_heard_days_ago": 18, "replies": 1, "follow_ups": 1,
+   "history": "Website enquiry about the Diploma of Nursing. Sent course information. Application and documents received. One follow-up call, no answer."},
+  {"name": "Daniel Okoro", "email": "daniel.okoro@example.com", "course": "Certificate III in Carpentry", "source": "Walk-in",
+   "status": "Contacted", "received_days_ago": 30, "last_heard_days_ago": 21, "replies": 1, "follow_ups": 1,
+   "history": "Walked in to reception asking about the Certificate III in Carpentry. Sent course information and fees. Asked about the class timetable. One follow-up email, no reply."},
+  {"name": "Mai Tran", "email": "mai.tran@example.com", "course": "General English", "source": "Expo",
+   "status": "Contacted", "received_days_ago": 10, "last_heard_days_ago": 3, "replies": 2, "follow_ups": 0,
+   "history": "Met at an education expo; interested in General English. Sent course information. Asked about the next intake dates and the English test needed."},
+  {"name": "Carlos Mendes", "email": "carlos.mendes@example.com", "course": "Diploma of Information Technology", "source": "Website",
+   "status": "New", "received_days_ago": 20, "last_heard_days_ago": 20, "replies": 0, "follow_ups": 1,
+   "history": "Website enquiry form about the Diploma of Information Technology. Replied with course information; no answer yet."},
+  {"name": "Fatima Noor", "email": "fatima.noor@example.com", "course": "Diploma of Hospitality Management", "source": "Agent",
+   "status": "Offer sent", "received_days_ago": 200, "last_heard_days_ago": 150, "replies": 1, "follow_ups": 3,
+   "history": "Referred by an agent. Application received and offer sent in spring. Three follow-ups since, no reply."},
+  {"name": "Kenji Watanabe", "email": "kenji.watanabe@example.com", "course": "Certificate IV in Business", "source": "Referral",
+   "status": "Lost", "received_days_ago": 50, "last_heard_days_ago": 30, "replies": 1, "follow_ups": 0,
+   "history": "Referred by a current student. Sent course information. Said he has chosen another college."}
+]

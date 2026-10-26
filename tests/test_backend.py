@@ -14,6 +14,7 @@ from backend.risk_model import RiskModel
 from backend.store import Store, StoreError
 
 SEED = Path(backend_app.__file__).parent / "seed.json"
+SEED_LEADS = Path(backend_app.__file__).parent / "seed_leads.json"
 STAFF = {"X-Staff-Name": "Test Staff"}
 CARD_KEYS = {"name", "status", "course", "last_contact", "payment_status"}
 # Fixed weights, so retraining backend/risk_model.json doesn't change these tests.
@@ -47,7 +48,7 @@ class FakeLLM:
 @pytest.fixture
 def store():
     s = Store(":memory:", today=lambda: date(2026, 10, 25), risk_model=RISK)
-    s.seed_if_empty(SEED)
+    s.seed_if_empty(SEED, SEED_LEADS)
     return s
 
 
@@ -95,6 +96,22 @@ def test_on_track_students_get_no_reasons(store):
     mei = store.find("Mei Chen")[0]
     score, reasons = store.risk(mei)
     assert score < 0.01 and reasons == []
+
+
+def test_cooling_leads_are_interested_people_gone_quiet(store):
+    rows = store.cooling_leads()
+    # Not Mai (heard from 3 days ago), Carlos (never replied), Fatima (cold for 150 days) or Kenji (lost).
+    assert [r["name"] for r in rows] == ["Ji-ho Park", "Ananya Iyer", "Daniel Okoro"]
+    assert rows[0] == {"name": "Ji-ho Park", "status": "Offer sent", "course": "Diploma of Business",
+                       "days_quiet": 25, "reason": "No reply for 25 days after 2 follow-ups"}
+
+
+def test_leads_are_found_by_name_and_load_once(store):
+    assert [r["name"] for r in store.find_lead("ji-ho")] == ["Ji-ho Park"]
+    assert store.find_lead("Liam") == []
+    assert Store.lead_card(store.find_lead("Mai Tran")[0])["status"] == "Enquiry: Contacted"
+    with pytest.raises(StoreError):
+        store.load_leads([])
 
 
 def test_inactive_students_are_never_at_risk(store):
@@ -519,3 +536,41 @@ def test_telling_family_needs_the_privacy_policy_first(store, traces):
     data = chat(client, "Liam's mum rang about his attendance, can I tell her?")
     assert "privacy policy" in llm.seen[2][-1]["content"]
     assert "consent" in data["text"] and data["sources"][0]["section"] == "Who can see a student's information"
+
+
+# --- leads -------------------------------------------------------------------
+
+def test_cooling_leads_via_chat_and_endpoint(store, traces):
+    client, llm = client_for(store, [call("list_cooling_leads")], "3 enquiries have gone quiet.")
+    data = chat(client, "which leads are going cold?")
+    assert data["type"] == "cooling_leads" and data["leads"][0]["name"] == "Ji-ho Park"
+    assert client.get("/cooling-leads").json()["leads"] == data["leads"]
+    assert json.loads(llm.seen[1][-1]["content"])["cooling"] == 3
+
+
+def test_leads_can_be_looked_up_and_emailed_but_not_changed(store, traces):
+    client, _ = client_for(store, [call("find_student", name="Ji-ho")], "Ji-ho Park has an offer.",
+                           [call("draft_email", name="Ji-ho Park", subject="Your offer", body="Hi Ji-ho")], "Draft below.",
+                           [call("stage_update", name="Ji-ho Park", field="status", new_value="Active")],
+                           "Ji-ho is an enquiry, so I can't change that.")
+    found = chat(client, "find Ji-ho")
+    assert found["student"]["status"] == "Enquiry: Offer sent"
+    assert chat(client, "draft Ji-ho a follow-up")["draft"]["to"] == "jiho.park@example.com"
+    refused = chat(client, "set Ji-ho Park's status to Active")
+    assert refused["type"] == "clarify" and "update" not in refused
+    assert store.db.execute("select count(*) from pending_updates").fetchone()[0] == 0
+
+
+def test_record_facts_are_not_mistaken_for_save_claims():
+    from backend.agent import claims_saved
+    assert not claims_saved("Ji-ho has been sent a letter of offer, and a letter of offer has been sent twice.")
+    assert not claims_saved("Her visa application has been lodged.")
+    assert claims_saved("The email has been sent.") and claims_saved("Done! I've saved Arjun as Withdrawn.")
+
+
+def test_table_rows_are_remembered_for_the_next_turn(store, traces):
+    client, llm = client_for(store, [call("list_cooling_leads")], "3 enquiries have gone quiet.", "Which one?")
+    chat(client, "show cooling leads")
+    chat(client, "draft the top one a follow-up")
+    remembered = [m["content"] for m in llm.seen[2] if m["role"] == "assistant"]
+    assert "in order: Ji-ho Park, Ananya Iyer, Daniel Okoro" in remembered[-1]

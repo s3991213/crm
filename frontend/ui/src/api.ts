@@ -41,6 +41,7 @@ export const api = {
   chat: (message: string, conversationId: string) =>
     call<Reply>("POST", "/chat", { message, conversation_id: conversationId }),
   atRisk: () => call<Reply>("GET", "/at-risk"),
+  coolingLeads: () => call<Reply>("GET", "/cooling-leads"),
   resolve: (updateId: string, confirmed: boolean) =>
     call<{ ok: boolean; text: string }>("POST", `/updates/${encodeURIComponent(updateId)}/${confirmed ? "confirm" : "cancel"}`),
 };

@@ -52,6 +52,10 @@ async def at_risk(staff_name: str) -> dict:
     return await _request("GET", "/at-risk", staff_name)
 
 
+async def cooling_leads(staff_name: str) -> dict:
+    return await _request("GET", "/cooling-leads", staff_name)
+
+
 async def confirm_update(update_id: str, staff_name: str) -> dict:
     return await _request("POST", f"/updates/{update_id}/confirm", staff_name, {"staff_name": staff_name})
 

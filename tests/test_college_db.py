@@ -5,7 +5,7 @@ from datetime import date
 
 import pytest
 
-from backend.source_import import import_students, student_rows
+from backend.source_import import import_leads, import_students, lead_rows, student_rows
 from backend.store import EDITABLE, Store
 from college_db.generate import Generator, main, to_sql, write_sqlite
 
@@ -90,3 +90,23 @@ def test_command_line_builds_both_databases(tmp_path, capsys):
     assert len(Store(tmp_path / "crm.db").all_students()) == 20
     with pytest.raises(SystemExit):  # won't overwrite an existing database
         main(["--students", "20", "--out", str(tmp_path), "--crm-db", str(tmp_path / "crm.db")])
+
+
+def test_enquiries_become_leads_with_who_spoke_last(college):
+    rows = lead_rows(college)
+    assert len(rows) == 30 and len({r["email"] for r in rows}) == 30
+    for r in rows:
+        assert r["received"] <= r["last_heard"] <= "2026-10-25"
+        assert r["history"].count("(them)") == r["replies"] + 1  # the first enquiry is from them
+    store = Store(":memory:", today=lambda: TODAY)
+    assert import_leads(college, store) == 30
+    cooling = store.cooling_leads()
+    assert cooling and all(14 <= c["days_quiet"] <= 120 for c in cooling)
+
+
+def test_enquiries_are_well_formed():
+    tables = Generator(40, seed=2, today=TODAY).run()
+    assert tables["enquiries"] and {e["status"] for e in tables["enquiries"]} <= {
+        "New", "Contacted", "Application received", "Offer sent", "Lost"}
+    assert all(n["direction"] in ("In", "Out") for n in tables["enquiry_notes"])
+
