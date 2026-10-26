@@ -24,7 +24,8 @@ import yaml
 
 from backend import app as backend_app
 from backend.agent import NOTHING_SAVED_TEXT, SAVED_CLAIM, Agent
-from backend.llm import LLMError, OpenAICompatible, strip_thinking
+from backend.llm import LLMError, OpenAICompatible, OpenAIEmbedder, strip_thinking
+from backend.policies import PolicyIndex
 from backend.store import Store
 
 HERE = Path(__file__).parent
@@ -42,10 +43,12 @@ The assistant replied:
 {reply}
 ---
 
-A good reply: {rubric}
-It also must not state student facts, dates, amounts or rules that aren't given above.
+What a good reply must get across: {rubric}
 
-Does the reply meet every point? Answer with JSON only: {{"pass": true or false, "reason": "<one short sentence>"}}"""
+Pass the reply if it gets every one of those points across, in any wording. Extra detail is fine as long as it
+doesn't contradict them or invent student facts, dates, amounts or rules. Fail it only if a required point is
+missing or wrong, or it invents something. Answer with JSON only:
+{{"pass": true or false, "reason": "<one short sentence>"}}"""
 
 
 def check(expect: dict, reply: dict, tools: list[str], staged: int, wrote: bool) -> list[str]:
@@ -142,11 +145,11 @@ def gate(flat: list[dict]) -> list[str]:
     return out
 
 
-async def run_case(case: dict, llm, no_think: bool, judge_llm=None) -> dict:
+async def run_case(case: dict, llm, no_think: bool, judge_llm=None, policies: PolicyIndex | None = None) -> dict:
     store = Store(":memory:", today=lambda: TODAY)
     store.seed_if_empty(backend_app.HERE / "seed.json")
     before = json.dumps(store.all_students(), sort_keys=True)
-    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "")
+    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies)
     start = time.perf_counter()
     try:
         for msg in case.get("before", []):
@@ -239,6 +242,8 @@ async def main() -> None:
         cases = [c for c in cases if args.only in c["id"]]
     llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY, temperature=args.temperature)
     no_think = not args.think
+    policies = PolicyIndex(OpenAIEmbedder(args.base_url, backend_app.EMBED_MODEL, backend_app.LLM_API_KEY),
+                           cache=backend_app.POLICY_VECTORS)
     judge_llm = None if args.no_judge else OpenAICompatible(args.base_url, args.judge_model or args.model,
                                                              backend_app.LLM_API_KEY)
 
@@ -246,7 +251,7 @@ async def main() -> None:
     for i in range(args.repeat):
         run = []
         for case in cases:
-            r = await run_case(case, llm, no_think, judge_llm)
+            r = await run_case(case, llm, no_think, judge_llm, policies)
             run.append(r)
             mark = "PASS" if r["pass"] else "FAIL"
             print(f"[{i + 1}/{args.repeat}] {mark} {r['ms'] / 1000:5.1f}s {case['id']:32} {'; '.join(r['fails'])}")

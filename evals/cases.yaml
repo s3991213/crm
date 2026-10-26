@@ -393,3 +393,48 @@
   before: ["draft a thank-you email to Mei Chen for being class rep"]
   message: what course is she doing?
   expect: {type: answer, tools: [find_student], text_has: [Marketing]}
+
+# --- policy ---------------------------------------------------------------
+- id: policy-work-hours
+  category: policy
+  message: How many hours can international students work during term?
+  expect: {type: answer, tools: [search_policies], text_has: ["48"], sources: Working while studying, update: null}
+  judge: Student visa holders can work up to 48 hours per fortnight while the course is in session.
+
+- id: policy-refund-withdraw
+  category: policy
+  message: A student wants to withdraw 5 weeks before her course starts. Does she get anything back?
+  expect: {type: answer, tools: [search_policies], text_has: ["70"], update: null}
+  judge: >-
+    She gets 70% of the tuition she has paid back, because she is withdrawing 28 days or more before the start.
+
+- id: policy-privacy-parent
+  category: policy
+  message: Liam's mum rang asking how his attendance is going. Can I tell her?
+  expect: {type: answer, tools: [search_policies], update: null}
+  judge: >-
+    Staff shouldn't tell Liam's mother about his attendance unless Liam has given written consent (permission):
+    a student's information is only given to the student.
+
+- id: policy-with-record
+  category: policy
+  message: Sofia's attendance is low. What does the policy say we should do?
+  expect: {type: answer, tools: [search_policies], text_has: [warning], update: null}
+  judge: >-
+    Below 80% attendance the student gets a formal warning letter and is invited to an intervention meeting
+    (within 10 working days), where a support plan is agreed.
+
+- id: policy-not-covered
+  category: policy
+  # Nothing in the policies covers parking: say so, don't make up a rule or a fee.
+  message: What's the college's policy on student parking permits?
+  expect: {type: answer, tools: [search_policies], text_lacks: ["$"], update: null}
+  judge: The policies don't cover parking; staff could check with Student Services. No parking rule is made up.
+
+- id: policy-paraphrase-deferral
+  category: policy
+  message: her dad's in hospital back home, can she take a break from the course and for how long?
+  expect: {type: answer, tools: [search_policies], text_has: ["6 months"], update: null}
+  judge: >-
+    She can ask to defer because a close family member is seriously ill, for up to 6 months at a time (12 months
+    at most over the whole course).

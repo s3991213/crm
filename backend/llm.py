@@ -79,3 +79,26 @@ def assistant_message(c: Completion) -> dict:
 
 def tool_message(call: ToolCall, result: dict) -> dict:
     return {"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)}
+
+
+class OpenAIEmbedder:
+    """Embeddings from the same kind of server, for the policy search (backend/policies.py)."""
+
+    def __init__(self, base_url: str, model: str, api_key: str = "not-needed", timeout: float = 60):
+        self.model = model
+        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=1)
+        # nomic-embed models are trained with these prefixes and do noticeably worse without them.
+        self.doc_prefix, self.query_prefix = ("search_document: ", "search_query: ") if "nomic" in model else ("", "")
+
+    async def _embed(self, texts: list[str]) -> list[list[float]]:
+        try:
+            r = await self.client.embeddings.create(model=self.model, input=texts)
+        except OpenAIError as exc:
+            raise LLMError(str(exc)) from exc
+        return [d.embedding for d in sorted(r.data, key=lambda d: d.index)]
+
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return await self._embed([self.doc_prefix + t for t in texts])
+
+    async def embed_query(self, text: str) -> list[float]:
+        return (await self._embed([self.query_prefix + text]))[0]

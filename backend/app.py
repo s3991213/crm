@@ -19,7 +19,8 @@ HERE = Path(__file__).parent
 load_dotenv(HERE / ".env")
 
 from .agent import Agent  # noqa: E402
-from .llm import LLMError, OpenAICompatible  # noqa: E402
+from .llm import LLMError, OpenAICompatible, OpenAIEmbedder  # noqa: E402
+from .policies import PolicyIndex  # noqa: E402
 from .store import Store, StoreError  # noqa: E402
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:1234/v1")
@@ -27,15 +28,18 @@ LLM_MODEL = os.getenv("LLM_MODEL", "qwen/qwen3-14b")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "not-needed")
 # Qwen3-style models skip their hidden reasoning step when the prompt ends with /no_think: much faster.
 LLM_NO_THINK = os.getenv("LLM_NO_THINK", "1") == "1"
+# Policy search embeddings; without this model loaded the search falls back to keywords.
+EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5")
 DB_PATH = Path(os.getenv("CRM_DB", HERE / "data" / "crm.db"))
+POLICY_VECTORS = HERE / "data" / "policy-vectors.json"
 TRACE_FILE = Path(os.getenv("CRM_TRACES", HERE / "logs" / "traces.jsonl"))
 
 log = logging.getLogger("crm.backend")
 
 
-def create_app(store: Store, llm, no_think: bool = False) -> FastAPI:
+def create_app(store: Store, llm, no_think: bool = False, policies: PolicyIndex | None = None) -> FastAPI:
     app = FastAPI(title="CRM Assistant")
-    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "")
+    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies)
     app.state.store, app.state.agent = store, agent
 
     class ChatIn(BaseModel):
@@ -97,4 +101,6 @@ def default_app() -> FastAPI:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     store = Store(DB_PATH)
     store.seed_if_empty(HERE / "seed.json")
-    return create_app(store, OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY), no_think=LLM_NO_THINK)
+    policies = PolicyIndex(OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY), cache=POLICY_VECTORS)
+    return create_app(store, OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY), no_think=LLM_NO_THINK,
+                      policies=policies)

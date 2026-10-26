@@ -1,0 +1,69 @@
+# Policy search eval: does the right policy section come back for a staff question?
+# Each case names the section (the "##" heading) that answers it. Questions are written the way staff ask,
+# often without the policy's own words, so keyword search alone can miss them.
+# Run: python -m evals.retrieval   (needs the embedding model in LM Studio)
+
+- q: How many hours a week can international students work?
+  want: Working while studying
+- q: Can Sofia pick up extra shifts at her café during the semester?
+  want: Working while studying
+- q: What do we do when a student's attendance falls under 80 percent?
+  want: When attendance drops
+- q: He's barely been coming to class, when does it get reported to immigration?
+  want: Reporting to the government
+- q: Does a doctor's note excuse missed classes?
+  want: Medical certificates and approved absences
+- q: She failed half her units this term, what happens now?
+  want: Course progress
+- q: How much does a second re-assessment cost?
+  want: Course progress
+- q: Student wants to quit, does she get any money back?
+  want: Refunds when a student withdraws
+- q: His visa got rejected before the course started, refund?
+  want: Refunds when a visa is refused
+- q: Can someone split their term fees into smaller payments?
+  want: Payment plans
+- q: Is there a fine for paying tuition late?
+  want: Late and overdue payments
+- q: When is the second term's tuition due?
+  want: Paying tuition fees
+- q: How long does it take to get a refund paid out?
+  want: How refunds are paid
+- q: Can a student take time off because their father is in hospital back home?
+  want: Deferring a course
+- q: What's the maximum break a student can take from their course?
+  want: How long a deferral can be
+- q: We want to cancel someone's enrolment for not paying, what's the process?
+  want: Suspension or cancellation by the college
+- q: She wants to move to a cheaper college after 3 months, can she?
+  want: The six-month rule
+- q: When do we give a release letter?
+  want: When a release letter is given
+- q: A student isn't happy with how we handled their complaint, where can they go next?
+  want: External appeal
+- q: How quickly do we have to respond to a written complaint?
+  want: Timeframes
+- q: His insurance runs out next month, what does he need to do?
+  want: Health cover
+- q: The student moved house, how soon must they tell us?
+  want: Keeping details up to date
+- q: Can he get credit for a unit he already did at TAFE?
+  want: Credit transfer
+- q: How much do we charge to assess skills from previous jobs?
+  want: Recognition of prior learning
+- q: Is counselling free for students?
+  want: Support available
+- q: A student had a serious accident on campus, who do I tell?
+  want: Critical incidents
+- q: When do international students get their CoE?
+  want: Confirmation of Enrolment
+- q: She missed orientation, is that a problem?
+  want: Orientation
+- q: Her mum called asking about her grades, can I tell her?
+  want: Who can see a student's information
+- q: Can I tell the agent about his attendance?
+  want: Education agents
+- q: How long do we keep records after a student leaves?
+  want: Keeping records
+- q: What English score is needed for a diploma?
+  want: Entry requirements

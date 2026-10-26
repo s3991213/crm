@@ -161,7 +161,16 @@ function Chat({ me, onPasswordChanged, onSignedOut }:
       case "staff":
         return <div className="bubble">{e.text}</div>;
       case "text":
-        return <div className={`reply${e.tone ? ` reply--${e.tone}` : ""}`}><Markdown>{e.text}</Markdown></div>;
+        return (
+          <div className={`reply${e.tone ? ` reply--${e.tone}` : ""}`}>
+            <Markdown>{e.text}</Markdown>
+            {e.sources && (
+              <p className="footnote sources">
+                From: {e.sources.map((s) => `${s.policy} (${s.section})`).join("; ")}
+              </p>
+            )}
+          </div>
+        );
       case "student":
         return <StudentCard student={e.student} />;
       case "change":

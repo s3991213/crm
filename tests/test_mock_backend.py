@@ -31,6 +31,13 @@ def test_find_student_returns_card():
     assert set(data["student"]) == CARD_KEYS
 
 
+def test_policy_answer_names_its_source():
+    data = chat("what's the refund policy?")
+    assert data["type"] == "answer" and "70%" in data["text"]
+    assert data["sources"] == [{"policy": "Fees, Payment Plans and Refunds Policy",
+                                "section": "Refunds when a student withdraws"}]
+
+
 def test_summary_returns_history():
     data = chat("summarise Sofia's history")
     assert data["type"] == "answer"

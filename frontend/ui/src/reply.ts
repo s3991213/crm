@@ -29,9 +29,15 @@ export interface Draft {
   body: string;
 }
 
+export interface Source {
+  policy: string;
+  section: string;
+}
+
 export interface Reply {
   type: string;
   text?: string;
+  sources?: Source[];
   student?: Student;
   update?: Update;
   students?: RiskRow[];
@@ -42,7 +48,7 @@ export type ChangeStatus = "pending" | "busy" | "saved" | "cancelled" | "failed"
 
 export type Item =
   | { kind: "staff"; text: string }
-  | { kind: "text"; text: string; tone?: "bad" }
+  | { kind: "text"; text: string; tone?: "bad"; sources?: Source[] }
   | { kind: "student"; student: Student }
   | { kind: "change"; update: Update; text: string; status: ChangeStatus }
   | { kind: "atRisk"; text: string; students: RiskRow[] }
@@ -79,7 +85,8 @@ export function toItems(reply: Reply): Item[] {
   } else if (reply.type === "change_password") {
     items.push({ kind: "text", text }, { kind: "password", forced: false });
   } else {
-    items.push({ kind: "text", text: text || UNCLEAR });
+    const sources = reply.sources?.length ? reply.sources : undefined;
+    items.push({ kind: "text", text: text || UNCLEAR, ...(sources && { sources }) });
   }
   return items;
 }

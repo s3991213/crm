@@ -19,7 +19,7 @@ The browser only talks to the staff server (`frontend/server.py`), never to the 
 
 The model chooses *which* tool to call. The code decides what each tool may do:
 
-- Five tools: `find_student`, `get_history`, `list_at_risk`, `stage_update`, `draft_email`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
+- Six tools: `find_student`, `get_history`, `list_at_risk`, `stage_update`, `draft_email`, `search_policies`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
 - Fields and values are checked against allowed lists. A new email address must be one staff actually typed.
 - One change per request: if the model tries a second, neither is staged and staff are asked.
 - A name that matches several students, or none, comes back as a question, never a guess. A misspelt name gets a "did you mean …?" question. A change is only staged for a student staff have clearly named in the chat ("Priya" isn't enough when there are two).
@@ -28,9 +28,29 @@ The model chooses *which* tool to call. The code decides what each tool may do:
 - Email drafts are addressed from the record, never by the model, and are never sent.
 - Student notes are passed as data. The seed data contains a planted prompt injection, and an eval checks it's ignored.
 - Confirm refuses if the record changed after the change was staged (409). Every stage, confirm, cancel and conflict goes to an `audit` table.
+- Policy answers must come from the passages `search_policies` returned: a number in the reply (a fee, a number of days) that isn't in them, or in what staff typed, gets the model one nudge and then a fixed "I couldn't find that" reply. A question about telling someone other than the student (a parent, an agent) makes the model check the privacy policy first.
 - Each request is traced to `backend/logs/traces.jsonl`: model, LLM calls (ms, tokens), tool calls (args, ok, ms).
 
-Risk scores come from transparent rules in `backend/store.py` (days since contact, payment, attendance), not from the model.
+Risk scores come from a trained model (see "At-risk model" below), not from the language model.
+
+## Policy questions
+
+`backend/policies/` holds the college's policy documents (sample policies for a fictional college, for now): fees
+and refunds, attendance and progress, visas and health cover, deferral, transfers, complaints, privacy, support,
+enrolment and credit. `backend/policies.py` searches them two ways and merges the rankings (reciprocal rank fusion):
+keyword search with SQLite FTS5 (BM25), for exact terms like "RPL" or "PRISMS", and meaning search with an embedding
+model served by LM Studio (`EMBED_MODEL`, default `text-embedding-nomic-embed-text-v1.5`), for questions phrased in
+staff's own words. The model is given the whole best-matching policy plus the other top sections, and the reply
+lists the sections it used. Embeddings are cached in `backend/data/policy-vectors.json`; without the embedding
+model the search falls back to keywords.
+
+`python -m evals.retrieval` measures the search on 32 staff questions (`evals/retrieval.yaml`); results are in
+`evals/results/retrieval.md`. On them: keyword alone puts the right section first 59% of the time, meaning alone 78%,
+both together 91%.
+
+This differs from the design doc (ChromaDB, sentence-transformers, a cross-encoder reranker): with about 50 passages,
+SQLite and the embedding model LM Studio already serves give hybrid search with nothing extra to install or keep in
+memory. A reranker can be added if the policy set grows and the retrieval eval drops.
 
 ## The college's student database (synthetic for now)
 
@@ -83,12 +103,19 @@ the model has the higher AUC and about twice the precision; real records will gi
 
 ## Evals
 
-`./run.sh evals` runs every case in `evals/cases.yaml` against the configured model. The categories are lookup, history, at-risk, update, draft, clarify, safety and multi-turn. Each case runs on a fresh copy of the seed data and also checks that no record was written. Results are saved to `evals/results/`.
+`./run.sh evals` runs every case in `evals/cases.yaml` against the configured model. The categories are lookup, history, at-risk, update, draft, clarify, safety, multi-turn and policy. Each case runs on a fresh copy of the seed data and also checks that no record was written. Structured parts of a reply are checked exactly; open-ended text (summaries, email drafts, policy answers) is also scored by an LLM judge against the case's `judge` rubric, the points a good reply must get across. Results are saved to `evals/results/`.
+
+The bar for using a model or prompt (`--gate` exits with an error below it): 95% of cases pass, every safety and
+update case passes, and no record is written. The judge is the model under test unless `--judge-model` names
+another, so it can be lenient with its own mistakes.
+
+`python -m evals.memory -- python -m evals.run` samples the Mac's memory during a run (`evals/results/memory.md`).
 
 ```bash
 ./run.sh evals                                  # model from backend/.env
 ./run.sh evals --model qwen/qwen3-14b --repeat 3   # pass^3: every run must pass
 ./run.sh evals --only update --verbose
+./run.sh evals --gate --judge-model <another-model>
 ```
 
 ## What staff see
@@ -96,6 +123,7 @@ the model has the higher AUC and about twice the precision; real records will gi
 - **Chat.** Type a request in plain English. While the backend works, a short "Working on it…" line shows.
 - **Student card.** When a reply is about one student, a compact card (name, status, course, last contact, payment) appears above the answer.
 - **At-risk students.** A welcome-screen button shows a table sorted by risk (the chance of withdrawing in the next 3 months, from the at-risk model), with its top two reasons for each student. In chat the table shows the top 20. Tapping a name asks for that student's summary.
+- **Policy answers.** Questions about the college's rules are answered from its policy documents, with a "From: …" line naming the policy and section.
 - **Draft emails.** Drafts appear in editable boxes with a **Copy** button. Nothing is ever sent from here.
 - **Confirmed changes.** Any change to a record shows a card (student, field, old value → new value) with **Confirm** and **Cancel**. Nothing is saved until Confirm is clicked. The buttons disappear after one click, so a change can't be saved twice.
 - **When things go wrong.** If the backend is down, slow, or the request is unclear, the assistant asks a short question instead of guessing.
@@ -237,7 +265,10 @@ Response (every field except `type` is optional):
   "students": [{"name": "", "risk_score": 0.84, "reasons": ["", ""]}],
 
   // type = draft_email
-  "draft": {"to": "", "subject": "", "body": ""}
+  "draft": {"to": "", "subject": "", "body": ""},
+
+  // type = answer, from the policies: the sections it came from, shown under the answer
+  "sources": [{"policy": "", "section": ""}]
 }
 ```
 

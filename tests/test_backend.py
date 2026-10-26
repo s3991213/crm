@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import app as backend_app
-from backend.agent import CONFIRM_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT
+from backend.agent import CONFIRM_TEXT, NOT_IN_POLICY_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT
 from backend.llm import Completion, LLMError, ToolCall, strip_thinking
 from backend.risk_model import RiskModel
 from backend.store import Store, StoreError
@@ -481,3 +481,41 @@ def test_strip_thinking():
     assert strip_thinking("<think>hmm</think>\nHello") == "Hello"
     assert strip_thinking("leftover</think> Hi") == "Hi"
     assert strip_thinking(None) == ""
+
+
+# --- policy questions --------------------------------------------------------
+
+def test_policy_answer_cites_the_section_it_used(store, traces):
+    client, llm = client_for(store, [call("search_policies", question="how many hours can students work")],
+                             "Under the visa policy, students can work up to 48 hours per fortnight during term.")
+    data = chat(client, "how much can international students work?")
+    assert data["type"] == "answer"
+    assert data["sources"][0] == {"policy": "Student Visa Conditions and Health Cover (OSHC)",
+                                  "section": "Working while studying"}
+    assert "48 hours per fortnight" in llm.seen[1][-1]["content"]  # the passage went to the model
+
+
+def test_policy_answer_with_a_made_up_number_is_replaced(store, traces):
+    client, llm = client_for(store, [call("search_policies", question="late fee")],
+                             "The late fee is $45.", "The late fee is $45.")
+    data = chat(client, "what's the late fee?")
+    assert "45" in llm.seen[2][-1]["content"] and "isn't in the policy" in llm.seen[2][-1]["content"]
+    assert data["text"] == NOT_IN_POLICY_TEXT and "sources" not in data
+
+
+def test_policy_numbers_from_the_passage_or_staff_are_fine(store, traces):
+    client, _ = client_for(store, [call("search_policies", question="late fee 14 days")],
+                           "A $100 late fee applies once an instalment is more than 14 days overdue.")
+    data = chat(client, "is there a late fee after 14 days?")
+    assert data["text"].startswith("A $100 late fee") and data["sources"]
+
+
+
+def test_telling_family_needs_the_privacy_policy_first(store, traces):
+    client, llm = client_for(store, [call("find_student", name="Liam")], "Sure, his attendance is 71%.",
+                             [call("search_policies", question="share information with parents")],
+                             "Not without Liam's written consent: under the Privacy and Student Records Policy, "
+                             "information is only given to the student.")
+    data = chat(client, "Liam's mum rang about his attendance, can I tell her?")
+    assert "privacy policy" in llm.seen[2][-1]["content"]
+    assert "consent" in data["text"] and data["sources"][0]["section"] == "Who can see a student's information"

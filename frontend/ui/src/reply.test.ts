@@ -64,3 +64,11 @@ it("colours values by meaning", () => {
   expect(valueTone("Paid")).toBe("good");
   expect(valueTone("General English")).toBe("");
 });
+
+it("shows which policy an answer came from", () => {
+  const sources = [{ policy: "Fees, Payment Plans and Refunds Policy", section: "Payment plans" }];
+  expect(toItems({ type: "answer", text: "Yes, up to 4 weeks.", sources })).toEqual([
+    { kind: "text", text: "Yes, up to 4 weeks.", sources },
+  ]);
+  expect(toItems({ type: "answer", text: "Hi", sources: [] })).toEqual([{ kind: "text", text: "Hi" }]);
+});

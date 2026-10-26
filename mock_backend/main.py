@@ -73,6 +73,13 @@ def chat(body: ChatIn, x_staff_name: str = Header("Unknown")):
     if "at risk" in text or "at-risk" in text:
         return at_risk()
 
+    if "policy" in text or "refund" in text:
+        return {"type": "answer",
+                "text": "If a student withdraws 28 days or more before the course starts, 70% of the tuition paid "
+                        "is refunded. After that, tuition for the current term isn't refunded.",
+                "sources": [{"policy": "Fees, Payment Plans and Refunds Policy",
+                             "section": "Refunds when a student withdraws"}]}
+
     m = re.search(r"(?:change|update|set)\s.*?\b(status|course|payment status|payment|email)\b.*?\bto\s+(.+)$", text)
     if m:
         if not match:

@@ -75,6 +75,12 @@ test("a change is saved only on Confirm, logged once, and Cancel saves nothing",
   expect(fs.readFileSync(path.join(E2E_DIR, "writes.log"), "utf8")).not.toContain("Liam");
 });
 
+test("a policy answer says which policy it came from", async ({ page }) => {
+  await signIn(page);
+  await say(page, "what's the refund policy if a student withdraws?");
+  await expect(page.locator(".sources")).toContainText("Fees, Payment Plans and Refunds Policy (Refunds when a student withdraws)");
+});
+
 test("an email draft is shown, never sent", async ({ page }) => {
   await signIn(page);
   await say(page, "draft a follow-up email for Liam");
