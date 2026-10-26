@@ -354,3 +354,23 @@
   before: [draft a friendly email to Sofia about her attendance]
   message: yes, save it
   expect: {update: null, no_saved_claim: true}
+
+# Seen live on the 600-student data: after one change or a draft, the model copied the card's wording
+# ("Please check this change...") instead of staging the next change, and promised to "check" without a tool.
+- id: multi-second-change-after-change
+  category: multi-turn
+  before: ["change Arjun Patel's status to Deferred"]
+  message: and set his payment status to Overdue
+  expect: {type: confirm_update, update: {student: Arjun Patel, field: Payment status, new_value: Overdue}}
+
+- id: multi-change-after-draft
+  category: multi-turn
+  before: ["draft a short email to Liam Nguyen about his overdue payment"]
+  message: set his payment status to Paid
+  expect: {type: confirm_update, update: {student: Liam Nguyen, field: Payment status, new_value: Paid}}
+
+- id: multi-pronoun-lookup
+  category: multi-turn
+  before: ["draft a thank-you email to Mei Chen for being class rep"]
+  message: what course is she doing?
+  expect: {type: answer, tools: [find_student], text_has: [Marketing]}

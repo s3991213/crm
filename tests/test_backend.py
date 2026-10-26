@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import app as backend_app
-from backend.agent import CONFIRM_TEXT, NOTHING_SAVED_TEXT
+from backend.agent import CONFIRM_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT
 from backend.llm import Completion, LLMError, ToolCall, strip_thinking
 from backend.store import Store, StoreError
 
@@ -282,6 +282,48 @@ def test_long_lists_of_matches_are_cut_short(store, traces):
     client, llm = client_for(store, [call("find_student", name="Nguyen")], "Which one?")
     chat(client, "find Nguyen")
     assert "and 6 more" in json.loads(llm.seen[1][-1]["content"])["error"]
+
+
+def test_confirm_wording_with_nothing_staged_gets_a_nudge(store, traces):
+    # Seen live: "set his payment status to Paid" got the card's wording copied from history, and no card.
+    client, llm = client_for(store, CONFIRM_TEXT,
+                             [call("stage_update", name="Arjun Patel", field="payment_status", new_value="Overdue")], "")
+    data = chat(client, "set Arjun Patel's payment status to Overdue")
+    assert data["type"] == "confirm_update" and data["update"]["student_name"] == "Arjun Patel"
+    assert "stage_update" in llm.seen[1][-1]["content"]
+
+
+def test_confirm_wording_twice_with_nothing_staged_is_replaced(store, traces):
+    client, _ = client_for(store, CONFIRM_TEXT, "Ready for you to confirm!")
+    data = chat(client, "set his payment status to Paid")
+    assert data["type"] == "clarify" and "update" not in data and data["text"] == NOT_STAGED_TEXT
+
+
+def test_promise_to_check_without_a_tool_gets_a_nudge(store, traces):
+    client, llm = client_for(store, "I'll check that for you. One moment please.",
+                             [call("find_student", name="Mei Chen")], "Mei is doing the Diploma of Marketing.")
+    data = chat(client, "what course is Mei Chen doing?")
+    assert data["student"]["name"] == "Mei Chen" and "Marketing" in data["text"]
+    assert "promises to check" in llm.seen[1][-1]["content"]
+
+
+def test_history_remembers_a_staged_change_as_a_fact(store, traces):
+    client, _ = client_for(store, [call("stage_update", name="Arjun Patel", field="status", new_value="Deferred")], "")
+    chat(client, "change Arjun Patel's status to Deferred", session="h")
+    user, called, result, said = store.conversation("h")
+    assert called["tool_calls"][0]["function"]["name"] == "stage_update"
+    assert result["role"] == "tool" and '"new_value": "Deferred"' in result["content"]
+    assert CONFIRM_TEXT not in said["content"]
+
+
+def test_history_is_trimmed_by_whole_turns(store, traces):
+    script = [[call("stage_update", name="Arjun Patel", field="status", new_value="Deferred")], ""] + ["ok"] * 6
+    client, _ = client_for(store, *script)
+    chat(client, "change Arjun Patel's status to Deferred", session="t")
+    for i in range(6):
+        chat(client, f"message {i}", session="t")
+    kept = store.conversation("t")
+    assert kept[0] == {"role": "user", "content": "message 0"} and len(kept) == 12
 
 
 def test_names_from_tool_results_need_no_nudge(store, traces):

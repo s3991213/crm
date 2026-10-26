@@ -76,6 +76,18 @@ SAVED_CLAIM = re.compile(r"\b(has been|have been|is now|I've|I have)\s+(now\s+|s
                          r"(saved|sent|updated|changed|submitted)\b", re.I)
 GROUNDING_NUDGE = ("(Message from the CRM system, not from staff.) Your reply mentions {names} without looking "
                    "them up in this request. Use a tool to check the record, then answer again.")
+# A reply presenting a change as ready to confirm when this request staged none: seen live, copied from an earlier turn.
+STAGED_CLAIM = re.compile(r"nothing is saved until you click|check this change|ready (for you )?to confirm"
+                          r"|staged (a |the |this )?change", re.I)
+STAGED_NUDGE = ("(Message from the CRM system, not from staff.) Your reply says a change is ready to confirm, but no "
+                "change was staged in this request. If staff asked for a change, call stage_update now; otherwise "
+                "answer without mentioning one.")
+NOT_STAGED_TEXT = "I haven't set up that change yet. Could you ask again with the student's full name and the new value?"
+# A reply promising to look something up without having used a tool: staff would wait for nothing.
+PROMISE = re.compile(r"\b(one moment|just a moment|let me (check|look|find|pull)|I'?ll (check|look|find|pull|get back))",
+                     re.I)
+PROMISE_NUDGE = ("(Message from the CRM system, not from staff.) Your reply promises to check, but you haven't used a "
+                 "tool. Use the tools now, then answer.")
 HISTORY_TURNS = 6
 
 
@@ -91,6 +103,7 @@ class Reply:
     needs_clarifying: bool = False
     many_changes: bool = False  # more than one change was asked for, so none is staged
     said: str = ""  # everything staff typed this session, to check values the model passes on
+    staged: list = field(default_factory=list)  # the stage_update call and its result, to remember it by
     seen: list = field(default_factory=list)  # tool results this request: what the reply may mention
 
     def as_dict(self) -> dict:
@@ -137,15 +150,14 @@ class Agent:
                                         "completion_tokens": c.completion_tokens, "tools": len(c.tool_calls)})
                 if not c.tool_calls:
                     reply.text = c.content
-                    unchecked = self._ungrounded(reply)
-                    if not unchecked:
+                    nudge, fallback = self._review(reply)
+                    if not nudge:
                         break
                     if nudged:
-                        reply.text, reply.needs_clarifying = UNGROUNDED_TEXT, True
+                        reply.text, reply.needs_clarifying = fallback, True
                         break
                     nudged = True
-                    messages += [{"role": "assistant", "content": c.content},
-                                 {"role": "user", "content": GROUNDING_NUDGE.format(names=", ".join(unchecked))}]
+                    messages += [{"role": "assistant", "content": c.content}, {"role": "user", "content": nudge}]
                     continue
                 messages.append(assistant_message(c))
                 for call in c.tool_calls:
@@ -157,9 +169,19 @@ class Agent:
             trace.ms = round((time.perf_counter() - start) * 1000)
             raise
 
+        own_words = reply.text
         self._finish(reply)
-        history += [{"role": "user", "content": message}, {"role": "assistant", "content": reply.text}]
-        self.store.save_conversation(session_id, history[-2 * HISTORY_TURNS:])
+        history.append({"role": "user", "content": message})
+        if reply.update and reply.staged:
+            # Remembered as the tool call it was. With the card's fixed wording, or a note, in its place, the
+            # model copied that text for the next change instead of calling stage_update.
+            if not own_words or SAVED_CLAIM.search(own_words) or STAGED_CLAIM.search(own_words):
+                own_words = "That change is on screen for you to confirm or cancel."
+            history += [*reply.staged, {"role": "assistant", "content": own_words}]
+        else:
+            history.append({"role": "assistant", "content": reply.text})
+        turns = [i for i, m in enumerate(history) if m["role"] == "user"]  # trimmed by whole turns
+        self.store.save_conversation(session_id, history[turns[-HISTORY_TURNS]:] if len(turns) > HISTORY_TURNS else history)
         trace.reply_type = reply.type
         trace.ms = round((time.perf_counter() - start) * 1000)
         return reply.as_dict(), trace
@@ -178,9 +200,24 @@ class Agent:
             handler = getattr(self, f"_tool_{call.name}", None)
             result = handler(args, staff, reply) if handler else {"error": f"Unknown tool {call.name}."}
         reply.seen.append(json.dumps(result).lower())
+        if call.name == "stage_update" and result.get("staged"):
+            reply.staged = [{"role": "assistant", "content": None, "tool_calls": [
+                {"id": call.id, "type": "function", "function": {"name": call.name, "arguments": call.arguments}}]},
+                tool_message(call, result)]
         trace.tool_calls.append({"name": call.name, "args": call.arguments, "ok": "error" not in result,
                                  "ms": round((time.perf_counter() - start) * 1000)})
         return result
+
+    def _review(self, reply: Reply) -> tuple[str | None, str]:
+        """A nudge for the model when its reply can't be shown as it is, and the fixed text if it happens again."""
+        if not reply.update and STAGED_CLAIM.search(reply.text):
+            return STAGED_NUDGE, NOT_STAGED_TEXT
+        unchecked = self._ungrounded(reply)
+        if unchecked:
+            return GROUNDING_NUDGE.format(names=", ".join(unchecked)), UNGROUNDED_TEXT
+        if not reply.seen and PROMISE.search(reply.text):
+            return PROMISE_NUDGE, UNGROUNDED_TEXT
+        return None, ""
 
     def _ungrounded(self, reply: Reply) -> list[str]:
         """Students named in the reply text that no tool returned in this request: the model is going from memory."""
