@@ -166,8 +166,8 @@ async def backend(fn, *args) -> dict:
         return await fn(*args)
     except api.BackendError as exc:
         if exc.refused:
-            raise HTTPException(409, f"Not saved. {exc.refused}")
-        raise HTTPException(504 if exc.timed_out else 502, CLARIFY_SLOW if exc.timed_out else CLARIFY_DOWN)
+            raise HTTPException(409, f"Not saved. {exc.refused}") from None
+        raise HTTPException(504 if exc.timed_out else 502, CLARIFY_SLOW if exc.timed_out else CLARIFY_DOWN) from None
 
 
 @app.post("/api/login")

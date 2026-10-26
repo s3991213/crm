@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 
 from backend.source_import import import_leads, import_students, lead_rows, student_rows
-from backend.store import EDITABLE, Store
+from backend.store import EDITABLE, Store, StoreError
 from college_db.generate import Generator, main, to_sql, write_sqlite
 
 TODAY = date(2026, 10, 25)
@@ -66,7 +66,7 @@ def test_import_maps_each_student_to_one_record(college):
     assert {r["status"] for r in rows} <= set(EDITABLE["status"])
     assert {r["payment_status"] for r in rows} <= set(EDITABLE["payment_status"])
     assert all(r["history"] and r["last_contact"] <= "2026-10-25" for r in rows)
-    with pytest.raises(Exception):  # never loads over existing records
+    with pytest.raises(StoreError):  # never loads over existing records
         import_students(college, store, today=TODAY)
 
 

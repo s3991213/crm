@@ -81,9 +81,9 @@ def create_app(store: Store, llm, no_think: bool = False, policies: PolicyIndex 
         try:
             done = store.confirm(update_id, x_staff_name)
         except KeyError:
-            raise HTTPException(404, "No pending change with that id")
+            raise HTTPException(404, "No pending change with that id") from None
         except StoreError as exc:
-            raise HTTPException(409, str(exc))
+            raise HTTPException(409, str(exc)) from None
         return {"ok": True, "text": f"Saved. {done['student_name']}'s {done['field'].lower()} is now **{done['new_value']}**."}
 
     @app.post("/updates/{update_id}/cancel")

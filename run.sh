@@ -6,6 +6,7 @@
 #   ./run.sh frontend     frontend only (point CRM_API_BASE_URL in frontend/.env at your backend)
 #   ./run.sh add-staff <username> "<Full Name>"
 #   ./run.sh test         run the test suite (extra args go to pytest; with none, the UI tests run too)
+#   ./run.sh lint         ruff (Python) and eslint (UI)
 #   ./run.sh e2e          browser test of the staff app against the mock backend (extra args go to Playwright)
 #   ./run.sh make-data    synthetic college database (600 students; --students N) and an assistant database from it
 #   ./run.sh train-risk   train the at-risk model on the make-data college database and write its validation report
@@ -133,6 +134,13 @@ case "${1:-all}" in
     # Downloads the headless browser the first time only
     npx playwright install --only-shell chromium >/dev/null
     PYTHON="$ENV_BIN/python" exec npx playwright test "$@"
+    ;;
+  lint)
+    cd "$ROOT"
+    "$ENV_BIN/ruff" check .
+    cd frontend/ui
+    [[ -d node_modules ]] || npm ci --no-audit --no-fund
+    npm run lint --silent
     ;;
   ui-dev)
     # Hot-reloading UI on :5173; start the staff server in another terminal with ./run.sh frontend

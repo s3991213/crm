@@ -14,6 +14,7 @@ the top of "Log" and tick, add or remove items in "Up next". Keep entries short;
 - Python env is the `crmenv` conda environment. `run.sh` finds it itself, so there's no need to activate it.
 - `./run.sh test` runs pytest (args pass through, e.g. `./run.sh test -k auth`). Run it after every change.
 - `./run.sh` starts the LLM backend (:8000) + frontend (:8080); `BACKEND=mock ./run.sh` for no model. Don't leave it running.
+- `./run.sh lint` runs ruff (`ruff.toml`) and eslint (`frontend/ui/eslint.config.js`); CI runs both. Keep it clean.
 - `./run.sh e2e` runs the Playwright browser test (`frontend/ui/e2e/`) against the mock, with throwaway logins.
   Run it after UI or `server.py` changes. CI (`.github/workflows/ci.yml`) runs pytest, vitest, the build and e2e.
 - `./run.sh make-data` builds the synthetic college DB (`college_db/`, MySQL schema) and `backend/data/crm-synthetic.db`

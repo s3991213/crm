@@ -1,0 +1,14 @@
+# Python lint: `./run.sh lint` (CI runs it too). Lint only; the code isn't run through a formatter.
+target-version = "py312"
+line-length = 120
+extend-exclude = ["frontend/ui"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # a few lines run a little past 120; wrap when it reads better, not for the linter
+    "B905",  # zip() pairs lists built together (DB columns with rows); strict= adds nothing
+]
+
+[lint.isort]
+known-first-party = ["api", "main", "server", "staff_auth", "state", "backend", "mock_backend", "college_db", "evals"]

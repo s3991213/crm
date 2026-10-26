@@ -2,5 +2,6 @@
 -r mock_backend/requirements.txt
 -r backend/requirements.txt
 pytest>=8
+ruff==0.17.2
 pyyaml>=6
 scikit-learn>=1.5  # backend/train_risk.py only
