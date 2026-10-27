@@ -278,6 +278,37 @@ alongside; `/api` is passed through to it). `cd frontend/ui && npm test` runs th
 
 Open http://localhost:8080 and sign in. To let other computers in the office use it, run with `--host 0.0.0.0` and share `http://<this-computer's-IP>:8080`.
 
+### As a service on this Mac
+
+`deploy/` has launchd agents that start the backend (:8000) and the staff app (:8080) at login, restart them if they
+crash, and copy `backend/data/crm.db` every night:
+
+```bash
+deploy/install.sh render /tmp/crm-plists   # write the filled-in plists somewhere to read them first
+deploy/install.sh                          # install into ~/Library/LaunchAgents and start them
+deploy/install.sh status                   # loaded?, last exit code
+deploy/install.sh uninstall                # stop and remove (logs and backups stay)
+deploy/backup-db.sh                        # a backup now
+```
+
+- **Logs**: `~/Library/Logs/crm-assistant/` (`backend.log`, `frontend.log`, `backup.log`), also in Console.app.
+- **Restarts**: if a service crashes it starts again (at most every 30 s). A clean stop (`launchctl kill TERM gui/$(id -u)/com.crm-assistant.backend`) leaves it stopped until the next login or `launchctl kickstart gui/$(id -u)/com.crm-assistant.backend`.
+- **Backups**: 02:30 each night to `~/Backups/crm-assistant/crm-<date>.db`, newest 14 kept, readable only by your user. `sqlite3 .backup` takes a consistent copy while the backend is writing, and each copy gets an integrity check. If the Mac is asleep at 02:30 it runs on wake; if it's off, that night is skipped. The copies are on the same disk, so also let Time Machine (or the college's backup) pick up `~/Backups`. To restore: stop the backend, copy a backup over `backend/data/crm.db`, start it again.
+- **LM Studio** must be running with its server on for the backend to answer: turn on LM Studio's setting to start the server at login, or run `lms server start`. The backend loads the model on first use.
+- The services listen on 127.0.0.1 only. To open the staff app to the office, change `HOST` in `deploy/com.crm-assistant.frontend.plist` to `0.0.0.0` and reinstall, but read the next part first.
+- macOS protects `~/Documents`: if a log says `Operation not permitted`, move the project folder outside `~/Documents` (e.g. `~/crm-assistant`) and run `deploy/install.sh` again from there.
+
+### https on the office network
+
+Over plain http, anyone on the office network can read sign-ins, session cookies and student records as they pass. `CRM_HTTPS=1` makes the session cookie https-only, so set it only once the app is reached over https (over http, sign-in would stop working). The options, roughly from best fit to least:
+
+1. **The college's own certificate authority.** If IT runs one (common with Windows domains), ask them for a certificate for this Mac's name (e.g. `crm.college.local`). Office PCs already trust it, so there's nothing to install on them.
+2. **A real certificate for a college domain**, e.g. `crm.<college-domain>` pointing at this Mac's office IP, from Let's Encrypt with a DNS challenge (the Mac needn't be reachable from the internet). Trusted everywhere; needs someone who can edit the college's DNS.
+3. **A local certificate authority** ([Caddy](https://caddyserver.com) `tls internal`, or `mkcert`): no IT involvement, but its root certificate has to be installed on every staff computer, and again on each new one.
+4. **A self-signed certificate**: not recommended. Browsers warn on every visit, and staff learn to click through warnings.
+
+For 1-3, the simplest set-up is a reverse proxy (Caddy) on this Mac terminating https on port 443 and forwarding to the staff app on 127.0.0.1:8080, which then stays off the network. The backend never needs to be reachable from other computers.
+
 Try: *"find Liam"*, *"summarise Sofia's history"*, *"change Arjun's status to Withdrawn"*, *"draft a follow-up email for Liam about his overdue payment"*, *"find Priya"* (two students match, so it asks which).
 
 ## Audit trail

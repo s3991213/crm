@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Nightly copy of backend/data/crm.db at 02:30 (deploy/backup-db.sh, keeps 14). If the Mac is asleep then,
+     it runs when it wakes; if it is switched off, that night is skipped. deploy/install.sh fills in the paths. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.crm-assistant.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__ROOT__/deploy/backup-db.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>__LOGS__/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOGS__/backup.log</string>
+</dict>
+</plist>

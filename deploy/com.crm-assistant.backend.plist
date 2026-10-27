@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- LLM backend on 127.0.0.1:8000. Starts at login and restarts if it crashes (not after a clean stop).
+     deploy/install.sh fills in __ROOT__, __LOGS__ and __PATH__. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.crm-assistant.backend</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__ROOT__/run.sh</string>
+    <string>backend</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__ROOT__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__PATH__</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <!-- If it keeps failing (e.g. backend/.env missing), try again every 30 s rather than every 10 s -->
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>__LOGS__/backend.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOGS__/backend.log</string>
+</dict>
+</plist>
