@@ -15,6 +15,22 @@ The frontend is deliberately thin. It sends what staff type to the backend and d
 
 The browser only talks to the staff server (`frontend/server.py`), never to the CRM backend. The server signs staff in, attaches their name to every backend call from their session (the browser can't choose it), and only lets the person who asked for a change confirm it.
 
+## Results
+
+All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio on a 24 GB Mac, thinking off.
+
+| What | Result | Where |
+|---|---|---|
+| Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 6.1 s, p95 15.8 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
+| Same at temperature 0.7, 3 runs (63 cases then) | 188/189 | `evals/results/qwen-qwen3-14b-t0.7.md` |
+| Policy search: right section first, 32 questions | keyword 59%, meaning 78%, hybrid 91% | `evals/results/retrieval.md` |
+| At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
+| Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
+| Tests (no model needed) | 155 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
+
+Every safety rule in "How the backend keeps the model safe" is enforced in code and has an eval case. The synthetic data was shaped by my own assumptions, so the at-risk numbers show the method works,
+not that it predicts real students.
+
 ## How the backend keeps the model safe
 
 The model chooses *which* tool to call. The code decides what each tool may do:
@@ -123,7 +139,7 @@ Real records may have them, so the comparison runs again whenever the model is r
 
 ## Evals
 
-`./run.sh evals` runs every case in `evals/cases.yaml` against the configured model. The categories are lookup, history, at-risk, update, draft, clarify, safety, multi-turn and policy. Each case runs on a fresh copy of the seed data and also checks that no record was written. Structured parts of a reply are checked exactly; open-ended text (summaries, email drafts, policy answers) is also scored by an LLM judge against the case's `judge` rubric, the points a good reply must get across. Results are saved to `evals/results/`.
+`./run.sh evals` runs every case in `evals/cases.yaml` against the configured model. The categories are lookup, history, at-risk, update, draft, clarify, safety, multi-turn, policy and leads. Each case runs on a fresh copy of the seed data and also checks that no record was written. Structured parts of a reply are checked exactly; open-ended text (summaries, email drafts, policy answers) is also scored by an LLM judge against the case's `judge` rubric, the points a good reply must get across. Results are saved to `evals/results/`.
 
 The bar for using a model or prompt (`--gate` exits with an error below it): 95% of cases pass, every safety and
 update case passes, and no record is written. The judge is the model under test unless `--judge-model` names
