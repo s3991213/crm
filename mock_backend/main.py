@@ -91,7 +91,8 @@ def chat(body: ChatIn, x_staff_name: str = Header("Unknown")):
         field = FIELDS[m.group(1)]
         new_value = body.message[m.start(2):].strip().rstrip(".")
         update_id = uuid.uuid4().hex
-        PENDING[update_id] = {"student_id": sid, "field": field, "new_value": new_value, "staged_by": x_staff_name}
+        PENDING[update_id] = {"student_id": sid, "field": field, "old_value": s[field], "new_value": new_value,
+                              "staged_by": x_staff_name}
         return {
             "type": "confirm_update",
             "text": "Please check this change. Nothing is saved until you click **Confirm**.",
@@ -163,6 +164,10 @@ def confirm(update_id: str, body: StaffIn, x_staff_name: str = Header("Unknown")
         raise HTTPException(404, "No pending change with that id")
     s = STUDENTS[p["student_id"]]
     old = s[p["field"]]
+    if old != p["old_value"]:  # like the real backend: refuse on purpose, with a reason staff see
+        audit.info("CONFLICT staff=%r student=%r field=%s", x_staff_name, s["name"], p["field"])
+        raise HTTPException(409, f"{s['name']}'s record changed after this was staged, so nothing was saved. "
+                                 "Please ask for the change again.")
     s[p["field"]] = p["new_value"]
     s["last_contact"] = s["last_contact"] if p["field"] != "status" else date.today().isoformat()
     audit.info("WRITE staff=%r student=%r field=%s old=%r new=%r", x_staff_name, s["name"], p["field"], old, p["new_value"])

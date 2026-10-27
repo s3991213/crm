@@ -110,6 +110,14 @@ def test_confirm_twice_fails_second_time():
     assert client.post(url, json={}, headers=STAFF).status_code == 404
 
 
+def test_confirm_refuses_when_the_record_changed_since_staging():
+    first, second = stage(), stage("change Arjun's status to Deferred")
+    assert client.post(f"/updates/{second['update_id']}/confirm", json={}, headers=STAFF).status_code == 200
+    response = client.post(f"/updates/{first['update_id']}/confirm", json={}, headers=STAFF)
+    assert response.status_code == 409 and "record changed" in response.json()["detail"]
+    assert main.STUDENTS[4]["status"] == "Deferred"
+
+
 def test_cancel_discards_the_change():
     update = stage()
     response = client.post(f"/updates/{update['update_id']}/cancel", json={}, headers=STAFF)

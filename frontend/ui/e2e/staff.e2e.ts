@@ -3,12 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { E2E_DIR } from "../playwright.config";
 
-// Every test also fails on a browser console error (401s are expected after signing out).
+// Every test also fails on a browser console error (401s are expected after signing out, a 409 on a refused confirm).
 const test = base.extend({
   page: async ({ page }, use) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(String(e)));
-    page.on("console", (m) => { if (m.type() === "error" && !/401|Unauthorized/.test(m.text())) errors.push(m.text()); });
+    page.on("console", (m) => { if (m.type() === "error" && !/401|Unauthorized|409 \(Conflict\)/.test(m.text())) errors.push(m.text()); });
     await use(page);
     expect(errors).toEqual([]);
   },
@@ -81,6 +81,18 @@ test("a change is saved only on Confirm, logged once, and Cancel saves nothing",
   await page.locator(".confirm--pending").getByText("Cancel").click();
   await expect(page.getByText("Cancelled, nothing changed")).toBeVisible();
   expect(fs.readFileSync(path.join(E2E_DIR, "writes.log"), "utf8")).not.toContain("Liam");
+});
+
+test("a refused confirm says Not saved and why, and changes nothing", async ({ page }) => {
+  await signIn(page);
+  await say(page, "change Sofia's status to Deferred");
+  await say(page, "change Sofia's status to Withdrawn");
+  await page.locator(".confirm--pending").last().getByText("Confirm").click();
+  await expect(page.locator(".thread")).toContainText("is now Withdrawn");
+  await page.locator(".confirm--pending").getByText("Confirm").click(); // staged before the record changed
+  await expect(page.getByText("Not saved", { exact: true })).toBeVisible();
+  await expect(page.locator(".thread")).toContainText("Not saved. Sofia Martinez's record changed after this was staged");
+  expect(fs.readFileSync(path.join(E2E_DIR, "writes.log"), "utf8")).not.toContain("new='Deferred'");
 });
 
 test("a policy answer says which policy it came from", async ({ page }) => {
