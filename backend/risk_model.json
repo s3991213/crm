@@ -30,13 +30,24 @@
       "precision": 0.255,
       "recall": 0.398
     },
+    "boosted_auc": 0.863,
+    "boosted_at_threshold": {
+      "flagged": 197,
+      "precision": 0.249,
+      "recall": 0.476
+    },
+    "boosted_minus_model_auc_95": [
+      -0.044,
+      -0.007
+    ],
     "over_time": {
       "cutoff": "2026-01-29",
       "train": 1610,
       "test": 1649,
       "test_withdrew": 46,
       "model_auc": 0.878,
-      "rule_auc": 0.831
+      "rule_auc": 0.831,
+      "boosted_auc": 0.882
     },
     "calibration": [
       {

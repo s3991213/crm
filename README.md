@@ -115,6 +115,12 @@ The report compares the model with the old hand-written rule score on the same s
 by student, and a check over time (trained on what was known 9 months ago, tested since). On the synthetic data
 the model has the higher AUC and about twice the precision; real records will give different numbers.
 
+It also trains gradient boosting on the same folds, to check a more flexible model wouldn't predict clearly better.
+On the synthetic data it doesn't: AUC 0.863 vs 0.886 (95% interval for the gap -0.044 to -0.007), and none of 24
+other settings tried by hand beat the logistic regression (0.796-0.868). The generator moves attendance, payments
+and contact smoothly with one hidden engagement level, so there are no interactions or cut-offs for trees to find.
+Real records may have them, so the comparison runs again whenever the model is retrained.
+
 ## Evals
 
 `./run.sh evals` runs every case in `evals/cases.yaml` against the configured model. The categories are lookup, history, at-risk, update, draft, clarify, safety, multi-turn and policy. Each case runs on a fresh copy of the seed data and also checks that no record was written. Structured parts of a reply are checked exactly; open-ended text (summaries, email drafts, policy answers) is also scored by an LLM judge against the case's `judge` rubric, the points a good reply must get across. Results are saved to `evals/results/`.

@@ -10,8 +10,11 @@ Question: will this student withdraw in the next 90 days?
 |---|---|---|---|---|
 | Trained model (flag at 10%) | 0.886 | 204 | 26% | 52% |
 | Old rule score (flag at 0.4) | 0.838 | 161 | 26% | 40% |
+| Gradient boosting, compared only (flag at 10%) | 0.863 | 197 | 25% | 48% |
 
-Over time: trained on the 1610 snapshots whose outcome was known by 2026-01-29, tested on the 1649 since (46 withdrawals): model AUC 0.878, rule AUC 0.831.
+Over time: trained on the 1610 snapshots whose outcome was known by 2026-01-29, tested on the 1649 since (46 withdrawals): model AUC 0.878, rule AUC 0.831, gradient boosting AUC 0.882.
+
+Gradient boosting minus the trained model, cross-validated AUC: 95% interval -0.044 to -0.007 (resampling students). No clear gain from gradient boosting, so the logistic regression stays: every score it gives can be explained feature by feature, and the backend scores it without scikit-learn.
 
 Calibration (out-of-fold): of the snapshots given each chance, how many withdrew.
 

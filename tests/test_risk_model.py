@@ -51,6 +51,8 @@ def test_training_keeps_only_weights_that_raise_the_risk(college):
     m = result["metrics"]
     assert m["model_auc"] > 0.7 and m["threshold"] == 0.1
     assert m["calibration"] and m["model_at_threshold"]["flagged"] > 0
+    lo, hi = m["boosted_minus_model_auc_95"]  # gradient boosting is measured alongside, never shipped
+    assert m["boosted_auc"] > 0.5 and lo <= hi and "boosted_auc" in m["over_time"]
 
 
 def test_command_line_writes_model_and_report(college, tmp_path):

@@ -11,6 +11,9 @@ the same snapshots, so the two can be compared:
 - cross-validation grouped by student (no student is in both the training and the test part), and
 - a check over time: trained only on what was known 9 months ago, tested on the snapshots since.
 
+Gradient boosting is measured the same way, as a check that a more flexible model wouldn't predict clearly better.
+It isn't shipped: its scores can't be explained feature by feature, and it would need scikit-learn in the backend.
+
 Writes backend/risk_model.json (the weights, read by risk_model.py) and evals/results/risk-model.md (the report).
 Needs scikit-learn (requirements-dev.txt); the backend itself doesn't.
 """
@@ -24,6 +27,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import GroupKFold
@@ -124,6 +128,25 @@ def fit(x: np.ndarray, y: np.ndarray) -> LogisticRegression:
     return LogisticRegression(C=1.0, max_iter=1000).fit(x, y)
 
 
+def fit_boosted(x: np.ndarray, y: np.ndarray) -> HistGradientBoostingClassifier:
+    """Shallow trees, fixed settings (not tuned on the test folds), each feature only allowed to raise the risk."""
+    return HistGradientBoostingClassifier(learning_rate=0.05, max_iter=200, max_depth=3, min_samples_leaf=40,
+                                          monotonic_cst=[1] * x.shape[1], random_state=0).fit(x, y)
+
+
+def auc_gap(y: np.ndarray, a: np.ndarray, b: np.ndarray, groups: np.ndarray, n: int = 1000) -> list[float]:
+    """95% interval for AUC(a) - AUC(b), resampling whole students (their snapshots aren't independent)."""
+    rng = np.random.default_rng(0)
+    students = np.unique(groups)
+    rows = {g: np.flatnonzero(groups == g) for g in students}
+    gaps = []
+    for _ in range(n):
+        idx = np.concatenate([rows[g] for g in rng.choice(students, len(students))])
+        if len(set(y[idx])) == 2:
+            gaps.append(roc_auc_score(y[idx], a[idx]) - roc_auc_score(y[idx], b[idx]))
+    return [round(float(q), 3) for q in np.percentile(gaps, [2.5, 97.5])]
+
+
 def signed_features(x: np.ndarray, y: np.ndarray) -> list[int]:
     """The columns to keep: every feature should only ever raise the risk (less attendance, longer silence, unpaid
     fees). One the data says lowers it is a side effect of something else, and would read as nonsense to staff,
@@ -138,15 +161,16 @@ def signed_features(x: np.ndarray, y: np.ndarray) -> list[int]:
 
 
 def evaluate(rows: list[dict], today: date, keep: list[int], folds: int = 5) -> dict:
-    names, x = matrix(rows)
-    x = x[:, keep]
+    names, x_all = matrix(rows)
+    x = x_all[:, keep]
     y = np.array([r["withdrew"] for r in rows], dtype=int)
     groups = np.array([r["student_id"] for r in rows])
     rule = np.array([rule_score(r) for r in rows])
 
-    oof = np.zeros(len(rows))
+    oof, oof_gb = np.zeros(len(rows)), np.zeros(len(rows))
     for train, test in GroupKFold(n_splits=folds).split(x, y, groups):
         oof[test] = fit(x[train], y[train]).predict_proba(x[test])[:, 1]
+        oof_gb[test] = fit_boosted(x_all[train], y[train]).predict_proba(x_all[test])[:, 1]
     threshold = FLAG_AT
 
     def stats(flag: np.ndarray) -> dict:
@@ -161,10 +185,12 @@ def evaluate(rows: list[dict], today: date, keep: list[int], folds: int = 5) -> 
     over_time = None
     if y[past].sum() >= 5 and len(set(y[later])) == 2:
         p_later = fit(x[past], y[past]).predict_proba(x[later])[:, 1]
+        gb_later = fit_boosted(x_all[past], y[past]).predict_proba(x_all[later])[:, 1]
         over_time = {"cutoff": cutoff.isoformat(), "train": int(past.sum()), "test": int(later.sum()),
                      "test_withdrew": int(y[later].sum()),
                      "model_auc": round(float(roc_auc_score(y[later], p_later)), 3),
-                     "rule_auc": round(float(roc_auc_score(y[later], rule[later])), 3)}
+                     "rule_auc": round(float(roc_auc_score(y[later], rule[later])), 3),
+                     "boosted_auc": round(float(roc_auc_score(y[later], gb_later)), 3)}
 
     bands = []
     for lo, hi in [(0, 0.05), (0.05, 0.1), (0.1, 0.2), (0.2, 0.4), (0.4, 1.01)]:
@@ -178,6 +204,8 @@ def evaluate(rows: list[dict], today: date, keep: list[int], folds: int = 5) -> 
         "base_rate": round(float(y.mean()), 3), "threshold": threshold,
         "model_auc": round(float(roc_auc_score(y, oof)), 3), "rule_auc": round(float(roc_auc_score(y, rule)), 3),
         "model_at_threshold": stats(oof >= threshold), "rule_at_threshold": stats(rule >= RULE_THRESHOLD),
+        "boosted_auc": round(float(roc_auc_score(y, oof_gb)), 3), "boosted_at_threshold": stats(oof_gb >= threshold),
+        "boosted_minus_model_auc_95": auc_gap(y, oof_gb, oof, groups),
         "over_time": over_time, "calibration": bands,
     }
 
@@ -208,13 +236,23 @@ def report(result: dict, source: str) -> str:
         f"| Trained model (flag at {m['threshold']:.0%}) | {m['model_auc']} | {m['model_at_threshold']['flagged']} | "
         f"{m['model_at_threshold']['precision']:.0%} | {m['model_at_threshold']['recall']:.0%} |",
         f"| Old rule score (flag at {RULE_THRESHOLD}) | {m['rule_auc']} | {m['rule_at_threshold']['flagged']} | "
-        f"{m['rule_at_threshold']['precision']:.0%} | {m['rule_at_threshold']['recall']:.0%} |", "",
+        f"{m['rule_at_threshold']['precision']:.0%} | {m['rule_at_threshold']['recall']:.0%} |",
+        f"| Gradient boosting, compared only (flag at {m['threshold']:.0%}) | {m['boosted_auc']} | "
+        f"{m['boosted_at_threshold']['flagged']} | {m['boosted_at_threshold']['precision']:.0%} | "
+        f"{m['boosted_at_threshold']['recall']:.0%} |", "",
     ]
     if m["over_time"]:
         t = m["over_time"]
         lines += [f"Over time: trained on the {t['train']} snapshots whose outcome was known by {t['cutoff']}, tested "
                   f"on the {t['test']} since ({t['test_withdrew']} withdrawals): model AUC {t['model_auc']}, "
-                  f"rule AUC {t['rule_auc']}.", ""]
+                  f"rule AUC {t['rule_auc']}, gradient boosting AUC {t['boosted_auc']}.", ""]
+    lo, hi = m["boosted_minus_model_auc_95"]
+    verdict = ("Gradient boosting is clearly better here: worth weighing against losing the readable reasons."
+               if lo > 0.02 else
+               "No clear gain from gradient boosting, so the logistic regression stays: every score it gives can be "
+               "explained feature by feature, and the backend scores it without scikit-learn.")
+    lines += [f"Gradient boosting minus the trained model, cross-validated AUC: 95% interval {lo:+.3f} to {hi:+.3f} "
+              f"(resampling students). {verdict}", ""]
     lines += ["Calibration (out-of-fold): of the snapshots given each chance, how many withdrew.", "",
               "| Predicted chance | Snapshots | Average predicted | Actually withdrew |", "|---|---|---|---|"]
     lines += [f"| {b['band']} | {b['snapshots']} | {b['predicted']:.1%} | {b['actual']:.1%} |" for b in m["calibration"]]
