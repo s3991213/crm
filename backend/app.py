@@ -28,6 +28,8 @@ LLM_MODEL = os.getenv("LLM_MODEL", "qwen/qwen3-14b")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "not-needed")
 # Qwen3-style models skip their hidden reasoning step when the prompt ends with /no_think: much faster.
 LLM_NO_THINK = os.getenv("LLM_NO_THINK", "1") == "1"
+# Qwen3.5 ignores /no_think; LLM_REASONING_EFFORT=none turns its thinking off through the API instead.
+LLM_REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT") or None
 # Policy search embeddings; without this model loaded the search falls back to keywords.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5")
 DB_PATH = Path(os.getenv("CRM_DB", HERE / "data" / "crm.db"))
@@ -108,5 +110,6 @@ def default_app() -> FastAPI:
     store = Store(DB_PATH)
     store.seed_if_empty(HERE / "seed.json", HERE / "seed_leads.json")
     policies = PolicyIndex(OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY), cache=POLICY_VECTORS)
-    return create_app(store, OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY), no_think=LLM_NO_THINK,
+    return create_app(store, OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, reasoning_effort=LLM_REASONING_EFFORT),
+                      no_think=LLM_NO_THINK,
                       policies=policies)

@@ -152,7 +152,7 @@
       <tr><td>Evals: golden set + LLM judge as a gate</td><td>As designed: 79 cases (typos, paraphrases, multi-turn, safety), exact checks plus an LLM judge for open-ended text; the gate is 95%, every safety and update case, and no writes</td><td>-</td></tr>
       <tr><td>Fits in 24GB</td><td>Measured during a full eval run: 13.9 GB peak wired memory, no swap growth</td><td>-</td></tr>
     </table>
-    <p>Not done yet: real records, running as a service with https and backups, and a judge model different from the one tested.</p>
+    <p>Judged by a different model (Qwen3.5 9B), Qwen3-14B still passes the gate (77/79); the 9B judge is stricter, and right about one of its three disagreements. Not done yet: real records, running as a service with https and backups.</p>
 
     <hr>
     <footer>Technical Design · CRM Assistant · Page 2 of the project doc set</footer>

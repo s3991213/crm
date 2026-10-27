@@ -54,6 +54,7 @@ def test_judge_reads_a_json_verdict():
 
     class FakeJudge:
         model = "fake"
+        extra = {}
 
         def __init__(self, content):
             self.content = content
@@ -73,4 +74,6 @@ def test_judge_reads_a_json_verdict():
     assert asyncio.run(judge(FakeJudge('{"pass": false, "reason": "invents a date"}'), case, reply, False)) \
         == "judge: invents a date"
     assert asyncio.run(judge(FakeJudge("no idea"), case, reply, False)).startswith("judge gave no verdict")
+    assert asyncio.run(judge(FakeJudge('{"pass": false, "reason": "omits the "second instalment""}'), case, reply,
+                             False)) == 'judge: omits the "second instalment'
 

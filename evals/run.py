@@ -5,7 +5,8 @@
     python -m evals.run --only update-status --verbose
     python -m evals.run --gate                  # exit 1 if the results are below the bar (see GATE)
 
-Each case runs on a fresh copy of the seed data. Results go to evals/results/<model>.{md,json}.
+Each case runs on a fresh copy of the seed data. Results go to evals/results/<model>.{md,json}
+(with -judge-<model> added when --judge-model is another model).
 Structured parts of a reply are checked exactly. Open-ended text (summaries, drafts, policy answers) is
 also scored by an LLM judge against the case's `judge` rubric: the facts a good reply must get right.
 """
@@ -115,7 +116,7 @@ async def judge(judge_llm, case: dict, reply: dict, no_think: bool) -> str | Non
     prompt = JUDGE_PROMPT.format(message=case["message"], reply=reply_for_judge(reply), rubric=case["judge"])
     try:
         r = await judge_llm.client.chat.completions.create(
-            model=judge_llm.model, temperature=0,
+            model=judge_llm.model, temperature=0, **judge_llm.extra,
             messages=[{"role": "user", "content": prompt + ("\n/no_think" if no_think else "")}])
     except Exception as exc:
         return f"judge unavailable: {exc}"
@@ -123,8 +124,9 @@ async def judge(judge_llm, case: dict, reply: dict, no_think: bool) -> str | Non
     m = re.search(r"\{.*\}", raw, re.S)
     try:
         verdict = json.loads(m.group(0)) if m else {}
-    except ValueError:
-        verdict = {}
+    except ValueError:  # e.g. unescaped quotes in the reason: read the two fields directly
+        p, why = re.search(r'"pass"\s*:\s*(true|false)', raw), re.search(r'"reason"\s*:\s*"(.*)', raw, re.S)
+        verdict = {"pass": p.group(1) == "true", "reason": why.group(1).rstrip('"}\n ') if why else ""} if p else {}
     if "pass" not in verdict:
         return f"judge gave no verdict: {raw[:80]!r}"
     return None if verdict["pass"] is True else f"judge: {verdict.get('reason', 'no reason given')}"
@@ -180,7 +182,8 @@ def percentile(values: list[int], p: float) -> int:
     return values[min(len(values) - 1, int(round(p * (len(values) - 1))))] if values else 0
 
 
-def report(model: str, no_think: bool, repeat: int, results: list[list[dict]], temperature: float = 0.0) -> str:
+def report(model: str, no_think: bool, repeat: int, results: list[list[dict]], temperature: float = 0.0,
+           judge_model: str | None = None) -> str:
     by_case = defaultdict(list)
     for run in results:
         for r in run:
@@ -205,7 +208,8 @@ def report(model: str, no_think: bool, repeat: int, results: list[list[dict]], t
         f"- Latency per request: p50 {percentile(latencies, 0.5) / 1000:.1f}s · p95 {percentile(latencies, 0.95) / 1000:.1f}s",
         f"- Tokens per case (avg): {statistics.mean(r['tokens'] for r in flat):.0f}",
         f"- Records written by the model: **{sum('a student record was written' in r['fails'] for r in flat)}**",
-        f"- Cases with an LLM judge rubric (open-ended text): {sum(1 for r in flat if r.get('judged'))}",
+        f"- Cases with an LLM judge rubric (open-ended text): {sum(1 for r in flat if r.get('judged'))}"
+        + f" · judge: {f'`{judge_model}`' if judge_model else 'none' if judge_model == '' else 'the model under test'}",
         f"- Gate ({GATE['pass_rate']:.0%} overall; every {' and '.join(GATE['safety_categories'])} case; no writes): "
         + ("**passed**" if not gate(flat) else "**not passed**: " + "; ".join(gate(flat))), "",
         "| Category | Passed | Rate |", "|---|---|---|",
@@ -232,6 +236,9 @@ async def main() -> None:
     ap.add_argument("--temperature", type=float, default=0.0,
                     help="sampling temperature; at 0 repeats are near-identical, so use ~0.7 with --repeat")
     ap.add_argument("--judge-model", help="model that scores open-ended replies (default: the model under test)")
+    ap.add_argument("--reasoning-effort", help='sent to the model under test; "none" turns off Qwen3.5 thinking')
+    ap.add_argument("--judge-reasoning-effort", help="the same for the judge (default: --reasoning-effort when the "
+                                                      "judge is the model under test)")
     ap.add_argument("--no-judge", action="store_true", help="exact checks only")
     ap.add_argument("--gate", action="store_true", help="exit with an error if the results don't clear GATE")
     ap.add_argument("--verbose", action="store_true")
@@ -240,12 +247,16 @@ async def main() -> None:
     cases = yaml.safe_load((HERE / "cases.yaml").read_text())
     if args.only:
         cases = [c for c in cases if args.only in c["id"]]
-    llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY, temperature=args.temperature)
+    llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY, temperature=args.temperature,
+                           reasoning_effort=args.reasoning_effort)
     no_think = not args.think
     policies = PolicyIndex(OpenAIEmbedder(args.base_url, backend_app.EMBED_MODEL, backend_app.LLM_API_KEY),
                            cache=backend_app.POLICY_VECTORS)
     judge_llm = None if args.no_judge else OpenAICompatible(args.base_url, args.judge_model or args.model,
-                                                             backend_app.LLM_API_KEY)
+                                                             backend_app.LLM_API_KEY,
+                                                             reasoning_effort=args.judge_reasoning_effort
+                                                             or (None if args.judge_model not in (None, args.model)
+                                                                 else args.reasoning_effort))
 
     results = []
     for i in range(args.repeat):
@@ -259,11 +270,14 @@ async def main() -> None:
                 print("        ", json.dumps(r["reply"])[:300])
         results.append(run)
 
-    md = report(args.model, no_think, args.repeat, results, args.temperature)
+    judge_model = "" if args.no_judge else args.judge_model if args.judge_model not in (None, args.model) else None
+    md = report(args.model, no_think, args.repeat, results, args.temperature, judge_model)
     out = HERE / "results"
     out.mkdir(exist_ok=True)
-    slug = (re.sub(r"[^a-z0-9.]+", "-", args.model.lower()).strip("-") + ("" if no_think else "-think")
-            + (f"-t{args.temperature:g}" if args.temperature else ""))
+    def name(model: str) -> str:
+        return re.sub(r"[^a-z0-9.]+", "-", model.lower()).strip("-")
+    slug = (name(args.model) + ("" if no_think else "-think") + (f"-t{args.temperature:g}" if args.temperature else "")
+            + (f"-judge-{name(judge_model)}" if judge_model else ""))
     if not args.only:
         (out / f"{slug}.md").write_text(md)
         (out / f"{slug}.json").write_text(json.dumps(results, indent=1))

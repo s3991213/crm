@@ -41,16 +41,19 @@ def strip_thinking(text: str | None) -> str:
 
 class OpenAICompatible:
     def __init__(self, base_url: str, model: str, api_key: str = "not-needed", timeout: float = 120,
-                 temperature: float = 0.0):
+                 temperature: float = 0.0, reasoning_effort: str | None = None):
         self.model = model
         self.temperature = temperature
+        # "none" turns off thinking where /no_think doesn't (Qwen3.5 in LM Studio). Only sent when set, since some
+        # hosted APIs reject the parameter for models that don't reason.
+        self.extra = {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=1)
 
     async def complete(self, messages: list[dict], tools: list[dict]) -> Completion:
         start = time.perf_counter()
         try:
             r = await self.client.chat.completions.create(
-                model=self.model, messages=messages, tools=tools, temperature=self.temperature,
+                model=self.model, messages=messages, tools=tools, temperature=self.temperature, **self.extra,
             )
         except OpenAIError as exc:
             raise LLMError(str(exc)) from exc

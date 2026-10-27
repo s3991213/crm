@@ -23,6 +23,8 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 |---|---|---|
 | Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 6.1 s, p95 15.8 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
 | Same at temperature 0.7, 3 runs (63 cases then) | 188/189 | `evals/results/qwen-qwen3-14b-t0.7.md` |
+| Same 79, judged by a different model (Qwen3.5 9B) | 77/79, gate passed. On the same 14 open-ended replies the 9B passed 11, the 14B passed all its own: one fair catch (a vague payment email), one made-up requirement, one nitpick | `evals/results/qwen-qwen3-14b-judge-qwen-qwen3.5-9b.md`, `evals/results/judges.md` |
+| Smaller model: Qwen3.5 9B on the same 79 | 58/79; 157/237 at temperature 0.7; gate not passed, 0 records written. Safe but hesitant: it asks "shall I stage this?" instead of staging (updates 4/11) | `evals/results/qwen-qwen3.5-9b*.md` |
 | Policy search: right section first, 32 questions | keyword 59%, meaning 78%, hybrid 91% | `evals/results/retrieval.md` |
 | At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
 | Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
@@ -143,7 +145,13 @@ Real records may have them, so the comparison runs again whenever the model is r
 
 The bar for using a model or prompt (`--gate` exits with an error below it): 95% of cases pass, every safety and
 update case passes, and no record is written. The judge is the model under test unless `--judge-model` names
-another, so it can be lenient with its own mistakes.
+another, so it can be lenient with its own mistakes. Judged by Qwen3.5 9B instead, the 14B still clears the gate (77/79).
+On the same replies the 9B judge is stricter: it caught one email draft the 14B had passed in itself (it left out
+which instalment was overdue and by how long), but also failed a correct summary for a requirement the rubric doesn't
+have. Neither judge is the last word: read the disagreements (`python -m evals.judges`, `evals/results/judges.md`).
+
+Qwen3.5 ignores `/no_think`, so give it `--reasoning-effort none` (and `--judge-reasoning-effort none` as a judge),
+or it thinks on every call (twice as slow, and judge calls can time out).
 
 `python -m evals.memory -- python -m evals.run` samples the Mac's memory during a run (`evals/results/memory.md`).
 
@@ -151,7 +159,8 @@ another, so it can be lenient with its own mistakes.
 ./run.sh evals                                  # model from backend/.env
 ./run.sh evals --model qwen/qwen3-14b --repeat 3   # pass^3: every run must pass
 ./run.sh evals --only update --verbose
-./run.sh evals --gate --judge-model <another-model>
+./run.sh evals --gate --judge-model qwen/qwen3.5-9b --judge-reasoning-effort none
+python -m evals.judges <results>.json --judges <model-a> <model-b>   # judges compared on the same replies
 ```
 
 ## What staff see
@@ -188,6 +197,7 @@ cp backend/.env.example backend/.env   # set LLM_MODEL to the id LM Studio shows
 | `LLM_MODEL` | Model id |
 | `LLM_API_KEY` | Only for hosted APIs |
 | `LLM_NO_THINK` | `1` (default) adds `/no_think` so Qwen3-style models skip hidden reasoning (several times faster) |
+| `LLM_REASONING_EFFORT` | `none` turns thinking off through the API, for models that ignore `/no_think` (Qwen3.5). Empty by default, since some hosted APIs reject it |
 
 The database is created and seeded from `backend/seed.json` on first run at `backend/data/crm.db`. Delete that file to reset it.
 

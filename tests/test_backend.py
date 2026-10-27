@@ -1,5 +1,6 @@
 """The LLM backend with a scripted fake model: tool routing, safety rules, and the API contract."""
 
+import asyncio
 import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -9,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from backend import app as backend_app
 from backend.agent import CONFIRM_TEXT, NOT_IN_POLICY_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT, time_checks
-from backend.llm import Completion, LLMError, ToolCall, strip_thinking
+from backend.llm import Completion, LLMError, OpenAICompatible, ToolCall, strip_thinking
 from backend.risk_model import RiskModel
 from backend.store import Store, StoreError
 
@@ -498,6 +499,21 @@ def test_strip_thinking():
     assert strip_thinking("<think>hmm</think>\nHello") == "Hello"
     assert strip_thinking("leftover</think> Hi") == "Hi"
     assert strip_thinking(None) == ""
+
+
+def test_reasoning_effort_is_only_sent_when_set():
+    class Spy:
+        async def create(self, **kwargs):
+            self.kwargs = kwargs
+            raise LLMError("stop")  # only the request matters here
+
+    for effort, extra in ((None, {}), ("none", {"reasoning_effort": "none"})):
+        llm = OpenAICompatible("http://localhost:1/v1", "m", reasoning_effort=effort)
+        spy = Spy()
+        llm.client.chat.completions = spy
+        with pytest.raises(LLMError):
+            asyncio.run(llm.complete([{"role": "user", "content": "hi"}], []))
+        assert {k: v for k, v in spy.kwargs.items() if k == "reasoning_effort"} == extra
 
 
 # --- policy questions --------------------------------------------------------
