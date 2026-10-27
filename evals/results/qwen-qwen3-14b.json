@@ -6,8 +6,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 19693,
-   "final_ms": 19693,
+   "ms": 5524,
+   "final_ms": 5524,
    "tokens": 2514,
    "tools": [
     "find_student"
@@ -30,8 +30,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8923,
-   "final_ms": 8923,
+   "ms": 6823,
+   "final_ms": 6823,
    "tokens": 2547,
    "tools": [
     "find_student"
@@ -54,8 +54,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 9176,
-   "final_ms": 9176,
+   "ms": 6921,
+   "final_ms": 6921,
    "tokens": 2543,
    "tools": [
     "find_student"
@@ -78,8 +78,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 5623,
-   "final_ms": 5623,
+   "ms": 4051,
+   "final_ms": 4051,
    "tokens": 2504,
    "tools": [
     "find_student"
@@ -102,8 +102,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 5912,
-   "final_ms": 5912,
+   "ms": 3982,
+   "final_ms": 3982,
    "tokens": 2502,
    "tools": [
     "find_student"
@@ -126,15 +126,15 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 10060,
-   "final_ms": 10060,
+   "ms": 7107,
+   "final_ms": 7107,
    "tokens": 2545,
    "tools": [
     "find_student"
    ],
    "reply": {
     "type": "answer",
-    "text": "Sofia Martinez is currently on a Visa pending status and is enrolled in the General English course. Her payment status is Partial, and her attendance percentage is 62%. She was last contacted on October 2, 2026. Would you like to update any of her details?",
+    "text": "Sofia Martinez is currently on a Visa pending status and enrolled in the General English course. Her payment status is Partial, and her attendance percentage is 62%. She was last contacted on October 2, 2026. Would you like to make any changes to her record?",
     "student": {
      "name": "Sofia Martinez",
      "status": "Visa pending",
@@ -150,8 +150,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 10081,
-   "final_ms": 10081,
+   "ms": 7226,
+   "final_ms": 7225,
    "tokens": 2539,
    "tools": [
     "find_student"
@@ -174,8 +174,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7199,
-   "final_ms": 7199,
+   "ms": 4883,
+   "final_ms": 4883,
    "tokens": 2518,
    "tools": [
     "find_student"
@@ -198,8 +198,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7084,
-   "final_ms": 7084,
+   "ms": 4719,
+   "final_ms": 4719,
    "tokens": 2512,
    "tools": [
     "find_student"
@@ -222,8 +222,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8311,
-   "final_ms": 8311,
+   "ms": 5577,
+   "final_ms": 5577,
    "tokens": 2530,
    "tools": [
     "find_student"
@@ -246,8 +246,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 11255,
-   "final_ms": 7540,
+   "ms": 7559,
+   "final_ms": 5080,
    "tokens": 2503,
    "tools": [
     "get_history"
@@ -270,8 +270,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 12338,
-   "final_ms": 7942,
+   "ms": 8789,
+   "final_ms": 5615,
    "tokens": 2508,
    "tools": [
     "get_history"
@@ -294,8 +294,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 10778,
-   "final_ms": 6918,
+   "ms": 7904,
+   "final_ms": 5099,
    "tokens": 2496,
    "tools": [
     "get_history"
@@ -318,8 +318,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 6890,
-   "final_ms": 6890,
+   "ms": 4977,
+   "final_ms": 4977,
    "tokens": 2526,
    "tools": [
     "list_at_risk"
@@ -361,8 +361,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 6883,
-   "final_ms": 6882,
+   "ms": 5108,
+   "final_ms": 5108,
    "tokens": 2532,
    "tools": [
     "list_at_risk"
@@ -404,8 +404,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 6980,
-   "final_ms": 6980,
+   "ms": 5230,
+   "final_ms": 5229,
    "tokens": 2529,
    "tools": [
     "list_at_risk"
@@ -447,8 +447,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7551,
-   "final_ms": 7551,
+   "ms": 5489,
+   "final_ms": 5488,
    "tokens": 2529,
    "tools": [
     "stage_update"
@@ -464,7 +464,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "b9094f6882754d5e9bd9a32e1f9491ba",
+     "update_id": "426ea008452f425da2070130dafe0e19",
      "student_id": 5,
      "student_name": "Arjun Patel",
      "field": "Status",
@@ -479,8 +479,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7937,
-   "final_ms": 7937,
+   "ms": 5783,
+   "final_ms": 5783,
    "tokens": 2541,
    "tools": [
     "stage_update"
@@ -496,7 +496,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "f32affa214e24fb280bb1c46bddc1efa",
+     "update_id": "85607895c4514a9188c2ab1af9564325",
      "student_id": 3,
      "student_name": "Liam Nguyen",
      "field": "Payment status",
@@ -511,8 +511,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8996,
-   "final_ms": 8996,
+   "ms": 6284,
+   "final_ms": 6284,
    "tokens": 2567,
    "tools": [
     "stage_update"
@@ -528,7 +528,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "3128cee5d81c422092ead3b62ce72554",
+     "update_id": "e2252ab8230c4dc0b3ec95731a94a5dd",
      "student_id": 6,
      "student_name": "Mei Chen",
      "field": "Email",
@@ -543,8 +543,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8232,
-   "final_ms": 8231,
+   "ms": 5979,
+   "final_ms": 5979,
    "tokens": 2543,
    "tools": [
     "stage_update"
@@ -560,7 +560,7 @@
      "payment_status": "Partial"
     },
     "update": {
-     "update_id": "cdabf86314384dc396e191dacb3799ff",
+     "update_id": "b498b9ed81954b99813d869df1b171b2",
      "student_id": 4,
      "student_name": "Sofia Martinez",
      "field": "Status",
@@ -575,8 +575,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8804,
-   "final_ms": 8804,
+   "ms": 6197,
+   "final_ms": 6197,
    "tokens": 2552,
    "tools": [
     "stage_update"
@@ -592,7 +592,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "54a50fc541bf4cfa8ed754d9418e1ed2",
+     "update_id": "7db43b4ceb2d46f9b9a9f2d20b344116",
      "student_id": 12,
      "student_name": "Hana Sato",
      "field": "Course",
@@ -607,8 +607,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7842,
-   "final_ms": 7842,
+   "ms": 5463,
+   "final_ms": 5463,
    "tokens": 2528,
    "tools": [
     "stage_update"
@@ -624,7 +624,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "148544dd07e247609c68b3699e4167ed",
+     "update_id": "07d71fdfee3e4c4a8efe415047af5798",
      "student_id": 5,
      "student_name": "Arjun Patel",
      "field": "Status",
@@ -639,8 +639,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8741,
-   "final_ms": 8741,
+   "ms": 5847,
+   "final_ms": 5847,
    "tokens": 2553,
    "tools": [
     "stage_update"
@@ -656,7 +656,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "2b616adcde9349f594d0dfb7ca1b697e",
+     "update_id": "5e39137426ee401786de15eb477ae9c7",
      "student_id": 6,
      "student_name": "Mei Chen",
      "field": "Email",
@@ -671,8 +671,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8005,
-   "final_ms": 8005,
+   "ms": 5408,
+   "final_ms": 5408,
    "tokens": 2535,
    "tools": [
     "stage_update"
@@ -688,7 +688,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "d70e7c36a882497dace4ecfdc9711555",
+     "update_id": "7e462da8163f4bf79974496adab32c11",
      "student_id": 6,
      "student_name": "Mei Chen",
      "field": "Status",
@@ -703,8 +703,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8049,
-   "final_ms": 8049,
+   "ms": 5637,
+   "final_ms": 5636,
    "tokens": 2544,
    "tools": [
     "stage_update"
@@ -720,7 +720,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "09a3c59af5484e6e9cf77df73d9cd276",
+     "update_id": "ec079fa98f6b40cca7c9832f452cbb01",
      "student_id": 10,
      "student_name": "Aisha Rahman",
      "field": "Status",
@@ -735,8 +735,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7611,
-   "final_ms": 7611,
+   "ms": 5479,
+   "final_ms": 5479,
    "tokens": 2535,
    "tools": [
     "stage_update"
@@ -752,7 +752,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "12915e0d7a7445b497fc8afdbf3c10ab",
+     "update_id": "c85c957c03a1484e822a6608be38db34",
      "student_id": 9,
      "student_name": "Lucas Silva",
      "field": "Payment status",
@@ -767,8 +767,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8336,
-   "final_ms": 8336,
+   "ms": 6031,
+   "final_ms": 6030,
    "tokens": 2545,
    "tools": [
     "stage_update"
@@ -784,7 +784,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "c8f0587d289e43e0845feb24282f960f",
+     "update_id": "905dffd574ca4e369de3df924db6a575",
      "student_id": 3,
      "student_name": "Liam Nguyen",
      "field": "Payment status",
@@ -799,8 +799,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 19640,
-   "final_ms": 15044,
+   "ms": 14166,
+   "final_ms": 10910,
    "tokens": 2663,
    "tools": [
     "draft_email"
@@ -828,8 +828,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 16328,
-   "final_ms": 11925,
+   "ms": 12002,
+   "final_ms": 8835,
    "tokens": 2603,
    "tools": [
     "draft_email"
@@ -857,8 +857,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 14657,
-   "final_ms": 14656,
+   "ms": 10929,
+   "final_ms": 10928,
    "tokens": 2651,
    "tools": [
     "draft_email"
@@ -874,8 +874,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 2454,
-   "final_ms": 2454,
+   "ms": 1808,
+   "final_ms": 1808,
    "tokens": 1197,
    "tools": [],
    "reply": {
@@ -889,8 +889,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8221,
-   "final_ms": 8221,
+   "ms": 6071,
+   "final_ms": 6071,
    "tokens": 2522,
    "tools": [
     "find_student"
@@ -906,8 +906,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8728,
-   "final_ms": 8728,
+   "ms": 6505,
+   "final_ms": 6504,
    "tokens": 2551,
    "tools": [
     "stage_update"
@@ -923,8 +923,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 6700,
-   "final_ms": 6699,
+   "ms": 4947,
+   "final_ms": 4947,
    "tokens": 2466,
    "tools": [
     "find_student"
@@ -940,8 +940,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 17179,
-   "final_ms": 17178,
+   "ms": 12714,
+   "final_ms": 12714,
    "tokens": 5376,
    "tools": [
     "stage_update",
@@ -965,8 +965,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8088,
-   "final_ms": 8087,
+   "ms": 6022,
+   "final_ms": 6022,
    "tokens": 2495,
    "tools": [
     "stage_update"
@@ -982,8 +982,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 1593,
-   "final_ms": 1593,
+   "ms": 1179,
+   "final_ms": 1179,
    "tokens": 1187,
    "tools": [],
    "reply": {
@@ -997,8 +997,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8458,
-   "final_ms": 8458,
+   "ms": 6261,
+   "final_ms": 6261,
    "tokens": 2508,
    "tools": [
     "stage_update"
@@ -1014,8 +1014,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 14341,
-   "final_ms": 14340,
+   "ms": 10650,
+   "final_ms": 10650,
    "tokens": 2665,
    "tools": [
     "draft_email"
@@ -1031,8 +1031,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 12722,
-   "final_ms": 12722,
+   "ms": 9359,
+   "final_ms": 9358,
    "tokens": 3915,
    "tools": [
     "find_student"
@@ -1055,8 +1055,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 15460,
-   "final_ms": 15460,
+   "ms": 11457,
+   "final_ms": 11457,
    "tokens": 5339,
    "tools": [
     "stage_update",
@@ -1080,8 +1080,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8447,
-   "final_ms": 8447,
+   "ms": 6332,
+   "final_ms": 6332,
    "tokens": 2555,
    "tools": [
     "stage_update"
@@ -1097,7 +1097,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "df51f0d3e3de485697b9df5044b73e4e",
+     "update_id": "41b50fcf521c43e1afab8482db9d1a45",
      "student_id": 3,
      "student_name": "Liam Nguyen",
      "field": "Status",
@@ -1112,8 +1112,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 3433,
-   "final_ms": 3432,
+   "ms": 2579,
+   "final_ms": 2578,
    "tokens": 1211,
    "tools": [],
    "reply": {
@@ -1127,8 +1127,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 2782,
-   "final_ms": 2781,
+   "ms": 2072,
+   "final_ms": 2072,
    "tokens": 1202,
    "tools": [],
    "reply": {
@@ -1142,8 +1142,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8425,
-   "final_ms": 8424,
+   "ms": 6353,
+   "final_ms": 6353,
    "tokens": 2541,
    "tools": [
     "get_history"
@@ -1166,8 +1166,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 10123,
-   "final_ms": 10123,
+   "ms": 7603,
+   "final_ms": 7603,
    "tokens": 2576,
    "tools": [
     "draft_email"
@@ -1195,8 +1195,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 20743,
-   "final_ms": 20743,
+   "ms": 15396,
+   "final_ms": 15396,
    "tokens": 5666,
    "tools": [
     "stage_update",
@@ -1214,8 +1214,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 8083,
-   "final_ms": 8083,
+   "ms": 6055,
+   "final_ms": 6055,
    "tokens": 2561,
    "tools": [
     "stage_update"
@@ -1231,7 +1231,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "81eae0f7bf7644c391019b24fbbde2e1",
+     "update_id": "35b724c5e556453b8fe2c0f695bea815",
      "student_id": 3,
      "student_name": "Liam Nguyen",
      "field": "Status",
@@ -1246,8 +1246,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 13234,
-   "final_ms": 13234,
+   "ms": 9902,
+   "final_ms": 9902,
    "tokens": 2642,
    "tools": [
     "draft_email"
@@ -1275,8 +1275,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 10749,
-   "final_ms": 10749,
+   "ms": 7895,
+   "final_ms": 7895,
    "tokens": 3884,
    "tools": [
     "find_student"
@@ -1299,8 +1299,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 6709,
-   "final_ms": 6709,
+   "ms": 4918,
+   "final_ms": 4918,
    "tokens": 2509,
    "tools": [
     "stage_update"
@@ -1316,8 +1316,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 3390,
-   "final_ms": 3390,
+   "ms": 2554,
+   "final_ms": 2553,
    "tokens": 1211,
    "tools": [],
    "reply": {
@@ -1331,8 +1331,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 17584,
-   "final_ms": 8426,
+   "ms": 12971,
+   "final_ms": 6159,
    "tokens": 2669,
    "tools": [
     "stage_update"
@@ -1348,7 +1348,7 @@
      "payment_status": "Partial"
     },
     "update": {
-     "update_id": "d1a39924e7f546d2a8ddaec57edb6a07",
+     "update_id": "25b3b65188694d8497572f889c398e04",
      "student_id": 4,
      "student_name": "Sofia Martinez",
      "field": "Status",
@@ -1363,8 +1363,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 19838,
-   "final_ms": 13468,
+   "ms": 14609,
+   "final_ms": 9940,
    "tokens": 2716,
    "tools": [
     "draft_email"
@@ -1392,8 +1392,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 16002,
-   "final_ms": 7733,
+   "ms": 11730,
+   "final_ms": 5693,
    "tokens": 2644,
    "tools": [
     "find_student"
@@ -1416,8 +1416,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 14652,
-   "final_ms": 7637,
+   "ms": 10815,
+   "final_ms": 5668,
    "tokens": 2795,
    "tools": [
     "stage_update"
@@ -1433,7 +1433,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "59d812eb3b594cb0813e940a36362e48",
+     "update_id": "edbe4f874830449f948956062bdc9dc6",
      "student_id": 3,
      "student_name": "Liam Nguyen",
      "field": "Status",
@@ -1448,8 +1448,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 14262,
-   "final_ms": 6878,
+   "ms": 10387,
+   "final_ms": 5003,
    "tokens": 2795,
    "tools": [
     "stage_update"
@@ -1465,7 +1465,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "c7db52ae60634cf1a71892985102a011",
+     "update_id": "1f0f2fd3e9ee439ba8c140cbc8344f69",
      "student_id": 5,
      "student_name": "Arjun Patel",
      "field": "Status",
@@ -1480,8 +1480,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 21135,
-   "final_ms": 13093,
+   "ms": 15385,
+   "final_ms": 9527,
    "tokens": 4105,
    "tools": [
     "find_student"
@@ -1504,8 +1504,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 18249,
-   "final_ms": 10821,
+   "ms": 13226,
+   "final_ms": 7896,
    "tokens": 2664,
    "tools": [
     "find_student"
@@ -1528,8 +1528,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 15962,
-   "final_ms": 7361,
+   "ms": 11601,
+   "final_ms": 5327,
    "tokens": 2626,
    "tools": [
     "stage_update"
@@ -1545,7 +1545,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "9010c629750f462d8697f62ddab696c9",
+     "update_id": "15450b942f4a4e58917c850260fa11dc",
      "student_id": 1,
      "student_name": "Priya Sharma",
      "field": "Status",
@@ -1560,8 +1560,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 36202,
-   "final_ms": 21054,
+   "ms": 26370,
+   "final_ms": 15344,
    "tokens": 3019,
    "tools": [
     "draft_email"
@@ -1589,8 +1589,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 14552,
-   "final_ms": 6856,
+   "ms": 10401,
+   "final_ms": 4907,
    "tokens": 2657,
    "tools": [
     "stage_update"
@@ -1606,8 +1606,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 25547,
-   "final_ms": 13904,
+   "ms": 18667,
+   "final_ms": 10141,
    "tokens": 2718,
    "tools": [
     "draft_email"
@@ -1635,8 +1635,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 15008,
-   "final_ms": 7643,
+   "ms": 10897,
+   "final_ms": 5557,
    "tokens": 2811,
    "tools": [
     "stage_update"
@@ -1652,7 +1652,7 @@
      "payment_status": "Paid"
     },
     "update": {
-     "update_id": "75d80e9aed69438596af57a46c841bb9",
+     "update_id": "331172f29c21470b9857af6086236085",
      "student_id": 5,
      "student_name": "Arjun Patel",
      "field": "Payment status",
@@ -1667,8 +1667,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 21614,
-   "final_ms": 8573,
+   "ms": 15772,
+   "final_ms": 6218,
    "tokens": 2626,
    "tools": [
     "stage_update"
@@ -1684,7 +1684,7 @@
      "payment_status": "Overdue"
     },
     "update": {
-     "update_id": "57bbdfcbf88a4f0698d525eef76ab9a7",
+     "update_id": "8b3aba2b97e346919081f1c75b4ec031",
      "student_id": 3,
      "student_name": "Liam Nguyen",
      "field": "Payment status",
@@ -1699,8 +1699,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 23013,
-   "final_ms": 5673,
+   "ms": 16803,
+   "final_ms": 4082,
    "tokens": 2606,
    "tools": [
     "find_student"
@@ -1723,8 +1723,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 44133,
-   "final_ms": 40035,
+   "ms": 17400,
+   "final_ms": 14483,
    "tokens": 3077,
    "tools": [
     "search_policies"
@@ -1747,21 +1747,55 @@
   {
    "id": "policy-refund-withdraw",
    "category": "policy",
-   "pass": false,
-   "fails": [
-    "type 'clarify', expected ['answer']",
-    "text lacks '70'"
-   ],
+   "pass": true,
+   "fails": [],
    "judged": true,
-   "ms": 36826,
-   "final_ms": 36825,
-   "tokens": 5452,
+   "ms": 19042,
+   "final_ms": 15773,
+   "tokens": 3316,
    "tools": [
     "search_policies"
    ],
    "reply": {
-    "type": "clarify",
-    "text": "I couldn't find a clear answer to that in the college's policies. Please check with Student Services."
+    "type": "answer",
+    "text": "The student is withdrawing 5 weeks (35 days) before her course starts, which is more than 28 days. According to the **Fees, Payment Plans and Refunds Policy**, she would be eligible for a 70% refund of the tuition paid. The enrolment fee is not refunded.",
+    "sources": [
+     {
+      "policy": "Fees, Payment Plans and Refunds Policy",
+      "section": "Refunds when a student withdraws"
+     },
+     {
+      "policy": "Fees, Payment Plans and Refunds Policy",
+      "section": "Refunds when a visa is refused"
+     }
+    ]
+   }
+  },
+  {
+   "id": "policy-refund-late-withdraw",
+   "category": "policy",
+   "pass": true,
+   "fails": [],
+   "judged": true,
+   "ms": 22657,
+   "final_ms": 18769,
+   "tokens": 3300,
+   "tools": [
+    "search_policies"
+   ],
+   "reply": {
+    "type": "answer",
+    "text": "Ahmed is withdrawing 3 weeks (21 days) before his course starts, which falls under the \"Refunds when a student withdraws\" section of the **Fees, Payment Plans and Refunds Policy**. According to this policy, if a student withdraws less than 28 days before the course starts, tuition already paid for the current term is not refunded. Fees paid for later terms are refunded in full, but the non-refundable enrolment fee of $250 is not returned.",
+    "sources": [
+     {
+      "policy": "Fees, Payment Plans and Refunds Policy",
+      "section": "Refunds when a student withdraws"
+     },
+     {
+      "policy": "Fees, Payment Plans and Refunds Policy",
+      "section": "Paying tuition fees"
+     }
+    ]
    }
   },
   {
@@ -1770,8 +1804,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 37275,
-   "final_ms": 32965,
+   "ms": 25161,
+   "final_ms": 22101,
    "tokens": 6854,
    "tools": [
     "search_policies",
@@ -1805,8 +1839,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 30454,
-   "final_ms": 26855,
+   "ms": 20005,
+   "final_ms": 17540,
    "tokens": 3110,
    "tools": [
     "search_policies"
@@ -1832,8 +1866,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 26883,
-   "final_ms": 23138,
+   "ms": 17469,
+   "final_ms": 14797,
    "tokens": 4415,
    "tools": [
     "search_policies"
@@ -1850,8 +1884,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 33240,
-   "final_ms": 27581,
+   "ms": 21934,
+   "final_ms": 17923,
    "tokens": 3238,
    "tools": [
     "search_policies"
@@ -1873,8 +1907,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 6872,
-   "final_ms": 6872,
+   "ms": 4978,
+   "final_ms": 4978,
    "tokens": 2525,
    "tools": [
     "list_cooling_leads"
@@ -1913,8 +1947,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 7914,
-   "final_ms": 7913,
+   "ms": 5775,
+   "final_ms": 5775,
    "tokens": 2548,
    "tools": [
     "list_cooling_leads"
@@ -1953,8 +1987,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 13011,
-   "final_ms": 9347,
+   "ms": 9386,
+   "final_ms": 6814,
    "tokens": 2607,
    "tools": [
     "find_student"
@@ -1977,8 +2011,8 @@
    "pass": true,
    "fails": [],
    "judged": true,
-   "ms": 20528,
-   "final_ms": 15467,
+   "ms": 14897,
+   "final_ms": 11354,
    "tokens": 2680,
    "tools": [
     "draft_email"
@@ -2006,8 +2040,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 9476,
-   "final_ms": 9476,
+   "ms": 6904,
+   "final_ms": 6904,
    "tokens": 2537,
    "tools": [
     "stage_update"
@@ -2023,8 +2057,8 @@
    "pass": true,
    "fails": [],
    "judged": false,
-   "ms": 23264,
-   "final_ms": 15176,
+   "ms": 16895,
+   "final_ms": 11014,
    "tokens": 2821,
    "tools": [
     "draft_email"

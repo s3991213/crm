@@ -132,6 +132,30 @@ THIRD_PARTY = re.compile(r"\b(mum|mom|mother|dad|father|parents?|family|brother|
 PRIVACY_NUDGE = ("(Message from the CRM system, not from staff.) Staff are asking about someone other than the student. "
                  "Check the privacy policy with search_policies before answering.")
 NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+# Time spans staff mention ("5 weeks before", "three months"), worked out in days for the policy's day limits:
+# the 14B read "5 weeks (35 days)" as less than 28 days.
+NUMBER_WORDS = {w: i for i, w in enumerate(
+    "one two three four five six seven eight nine ten eleven twelve".split(), start=1)}
+SPAN = re.compile(rf"\b(\d+|{'|'.join(NUMBER_WORDS)})\s+(day|week|month)s?\b", re.I)
+DAY_LIMIT = re.compile(r"\b(\d+)\s+days\b")
+DAYS_IN = {"day": 1, "week": 7, "month": 30}
+
+
+def time_checks(message: str, passages: list[str]) -> list[str]:
+    """Each time span in the staff message compared with each day limit in the passages, worked out in code."""
+    limits = sorted({int(n) for text in passages for n in DAY_LIMIT.findall(text)})
+    out = []
+    for amount, unit in SPAN.findall(message):
+        n, unit = int(NUMBER_WORDS.get(amount.lower(), amount)), unit.lower()
+        days = n * DAYS_IN[unit]
+        span = f"{n} {unit}{'s' if n != 1 else ''}"
+        in_days = "" if unit == "day" else f" is {'about ' if unit == 'month' else ''}{days} days, which"
+        for limit in limits:
+            if unit == "day" and n == limit:
+                continue
+            side = "more than" if days > limit else "less than" if days < limit else "exactly"
+            out.append(f"{span}{in_days} is {side} {limit} days.")
+    return out
 HISTORY_TURNS = 6
 AT_RISK_SHOWN = 20  # the table's length: the 14B took 42 s writing out 44 students when it had them all
 
@@ -414,9 +438,13 @@ class Agent:
             return {"error": "No question given."}
         found = await self.policies.search_with_context(question)
         reply.passages += [p for p in found if p not in reply.passages]
-        return {"passages": [{"policy": p.policy, "section": p.section, "text": p.text} for p in found],
-                "note": "Answer only from these passages and name the policy. If they don't answer the question, "
-                        "say so."}
+        result = {"passages": [{"policy": p.policy, "section": p.section, "text": p.text} for p in found],
+                  "note": "Answer only from these passages and name the policy. If they don't answer the question, "
+                          "say so."}
+        checks = time_checks(reply.message, [p.text for p in found])
+        if checks:
+            result["time_checks"] = checks + ["These are worked out for you: use them, don't redo the maths."]
+        return result
 
     def _tool_draft_email(self, args, staff, reply):
         s = self._resolve(args, reply)

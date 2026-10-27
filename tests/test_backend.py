@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import app as backend_app
-from backend.agent import CONFIRM_TEXT, NOT_IN_POLICY_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT
+from backend.agent import CONFIRM_TEXT, NOT_IN_POLICY_TEXT, NOT_STAGED_TEXT, NOTHING_SAVED_TEXT, time_checks
 from backend.llm import Completion, LLMError, ToolCall, strip_thinking
 from backend.risk_model import RiskModel
 from backend.store import Store, StoreError
@@ -526,6 +526,25 @@ def test_policy_numbers_from_the_passage_or_staff_are_fine(store, traces):
     data = chat(client, "is there a late fee after 14 days?")
     assert data["text"].startswith("A $100 late fee") and data["sources"]
 
+
+def test_time_spans_are_compared_with_policy_day_limits_in_code():
+    passage = ["Withdrawing in writing 28 days or more before the course starts: 70% is refunded."]
+    assert time_checks("withdraw 5 weeks before her course starts", passage) == [
+        "5 weeks is 35 days, which is more than 28 days."]
+    assert time_checks("leaving three weeks before", passage) == ["3 weeks is 21 days, which is less than 28 days."]
+    assert time_checks("pulling out 4 weeks before", passage) == ["4 weeks is 28 days, which is exactly 28 days."]
+    assert time_checks("two months before", passage) == ["2 months is about 60 days, which is more than 28 days."]
+    assert time_checks("is 30 days enough?", passage) == ["30 days is more than 28 days."]
+    assert time_checks("is 28 days enough?", passage) == []  # nothing to work out
+    assert time_checks("what is the refund?", passage) == []
+
+
+def test_policy_search_result_carries_the_worked_out_time_check(store, traces):
+    client, llm = client_for(store, [call("search_policies", question="refund when withdrawing before start")],
+                             "Under the fees and refunds policy, she gets 70% of the tuition paid back.")
+    data = chat(client, "A student withdraws 5 weeks before her course starts. Any refund?")
+    assert "5 weeks is 35 days, which is more than 28 days." in llm.seen[1][-1]["content"]
+    assert data["type"] == "answer" and "70%" in data["text"]
 
 
 def test_telling_family_needs_the_privacy_policy_first(store, traces):

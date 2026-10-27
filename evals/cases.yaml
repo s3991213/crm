@@ -408,6 +408,15 @@
   judge: >-
     She gets 70% of the tuition she has paid back, because she is withdrawing 28 days or more before the start.
 
+- id: policy-refund-late-withdraw
+  category: policy
+  # The other side of the 28-day line, as a number word: the time check is worked out in code.
+  message: Ahmed is pulling out three weeks before his course starts. How much of his tuition comes back?
+  expect: {type: answer, tools: [search_policies], text_lacks: ["70%"], update: null}
+  judge: >-
+    Three weeks is less than 28 days before the start, so the 70% refund doesn't apply: tuition already paid for
+    the current term isn't refunded, fees paid for later terms are refunded in full, and the enrolment fee never is.
+
 - id: policy-privacy-parent
   category: policy
   message: Liam's mum rang asking how his attendance is going. Can I tell her?
