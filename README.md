@@ -28,7 +28,7 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 | Policy search: right section first, 32 questions | keyword 59%, meaning 78%, hybrid 91% | `evals/results/retrieval.md` |
 | At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
 | Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
-| Tests (no model needed) | 155 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
+| Tests (no model needed) | 156 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
 
 Every safety rule in "How the backend keeps the model safe" is enforced in code and has an eval case. The synthetic data was shaped by my own assumptions, so the at-risk numbers show the method works,
 not that it predicts real students.
