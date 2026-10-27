@@ -59,97 +59,99 @@
   <div class="card">
     <p class="eyebrow">Document 3 of 3 · Architecture</p>
     <h1>System Architecture</h1>
-    <p class="intro">How a plain-English request travels through the system. The language model works only at the two ends (understanding and writing). Everything in the middle runs as fixed, dependable steps, and the whole system stays on local hardware.</p>
+    <p class="intro">How a plain-English request travels through the system as built. The language model chooses which tools to use and writes the reply; the tools can only read records or stage a change, plain Python checks every reply before staff see it, and nothing is saved until a person clicks Confirm. Everything stays on local hardware.</p>
 
     <div class="diagram">
-      <svg viewBox="0 0 820 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram of the CRM assistant">
+      <svg viewBox="0 0 820 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram of the CRM assistant as built">
         <defs>
-          <marker id="arw" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto">
+          <marker id="arw" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto-start-reverse">
             <path d="M0,0 L8,4.5 L0,9 Z" fill="#8FA3B6"/>
           </marker>
         </defs>
 
         <!-- local machine enclosure -->
-        <rect x="18" y="150" width="784" height="470" rx="14" fill="none" stroke="#B7C6D6" stroke-width="1.5" stroke-dasharray="6 5"/>
-        <text x="34" y="172" class="svg-sub" font-size="11" letter-spacing="1.5">LOCAL MACHINE · APPLE M5 · 24GB</text>
+        <rect x="18" y="98" width="784" height="534" rx="14" fill="none" stroke="#B7C6D6" stroke-width="1.5" stroke-dasharray="6 5"/>
+        <text x="34" y="120" class="svg-sub" font-size="11" letter-spacing="1.5">LOCAL MACHINE · 24GB · 13.9 GB PEAK</text>
 
-        <!-- A: staff query -->
-        <rect x="290" y="24" width="240" height="52" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
-        <text x="410" y="46" text-anchor="middle" class="svg-title" font-size="15">Staff member</text>
-        <text x="410" y="63" text-anchor="middle" class="svg-label" font-size="11.5">types a request in plain English</text>
+        <!-- staff -->
+        <rect x="290" y="20" width="240" height="52" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
+        <text x="410" y="42" text-anchor="middle" class="svg-title" font-size="15">Staff member</text>
+        <text x="410" y="59" text-anchor="middle" class="svg-label" font-size="11.5">types a request in the browser</text>
+        <line x1="410" y1="72" x2="410" y2="128" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
 
-        <line x1="410" y1="76" x2="410" y2="108" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
+        <!-- staff server -->
+        <rect x="270" y="130" width="280" height="66" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
+        <text x="410" y="154" text-anchor="middle" class="svg-title" font-size="15">Staff server</text>
+        <text x="410" y="172" text-anchor="middle" class="svg-sub" font-size="10.5">FASTAPI · SIGN-IN · SESSIONS</text>
+        <text x="410" y="188" text-anchor="middle" class="svg-label" font-size="11">adds who is asking; logs every save</text>
+        <polyline points="410,196 410,220 190,220 190,246" fill="none" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
 
-        <!-- B: intent extraction (smart) -->
-        <rect x="285" y="110" width="250" height="66" rx="10" fill="#F6E6D2" stroke="#DB8232" stroke-width="1.8"/>
-        <text x="410" y="136" text-anchor="middle" class="svg-title" font-size="15">Intent extraction</text>
-        <text x="410" y="154" text-anchor="middle" class="svg-sub" font-size="10.5">LLM · JSON-SCHEMA CONSTRAINED</text>
-        <text x="410" y="169" text-anchor="middle" class="svg-label" font-size="11.5">works out the action + parameters</text>
+        <!-- agent (smart) -->
+        <rect x="40" y="248" width="300" height="84" rx="10" fill="#F6E6D2" stroke="#DB8232" stroke-width="1.8"/>
+        <text x="190" y="274" text-anchor="middle" class="svg-title" font-size="15">Tool-calling agent</text>
+        <text x="190" y="292" text-anchor="middle" class="svg-sub" font-size="10.5">LLM · QWEN3-14B · UP TO 5 STEPS</text>
+        <text x="190" y="310" text-anchor="middle" class="svg-label" font-size="11">picks tools, reads what they return,</text>
+        <text x="190" y="324" text-anchor="middle" class="svg-label" font-size="11">then writes the reply</text>
 
-        <line x1="410" y1="176" x2="410" y2="220" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
-        <text x="418" y="202" class="svg-sub" font-size="10.5">structured intent (JSON)</text>
+        <!-- tools -->
+        <text x="630" y="238" text-anchor="middle" class="svg-sub" font-size="10.5" letter-spacing="1">TOOLS · READ OR STAGE ONLY</text>
+        <line x1="340" y1="290" x2="468" y2="277" stroke="#8FA3B6" stroke-width="1.5" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <line x1="340" y1="290" x2="468" y2="349" stroke="#8FA3B6" stroke-width="1.5" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <line x1="340" y1="290" x2="468" y2="421" stroke="#8FA3B6" stroke-width="1.5" marker-start="url(#arw)" marker-end="url(#arw)"/>
+        <line x1="340" y1="290" x2="468" y2="493" stroke="#8FA3B6" stroke-width="1.5" marker-start="url(#arw)" marker-end="url(#arw)"/>
 
-        <!-- C: router (fixed) -->
-        <rect x="285" y="222" width="250" height="58" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
-        <text x="410" y="246" text-anchor="middle" class="svg-title" font-size="15">Router / orchestrator</text>
-        <text x="410" y="264" text-anchor="middle" class="svg-sub" font-size="10.5">DETERMINISTIC PYTHON · NO MODEL</text>
+        <rect x="470" y="246" width="320" height="62" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
+        <text x="486" y="269" class="svg-title" font-size="14">Records</text>
+        <text x="486" y="285" class="svg-sub" font-size="10">SQLITE · 600 STUDENTS + ENQUIRIES</text>
+        <text x="486" y="300" class="svg-label" font-size="10.5">find · history · draft email · stage a change</text>
 
-        <!-- fan out to tools -->
-        <line x1="410" y1="280" x2="150" y2="336" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
-        <line x1="410" y1="280" x2="410" y2="336" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
-        <line x1="410" y1="280" x2="670" y2="336" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
+        <rect x="470" y="318" width="320" height="62" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
+        <text x="486" y="341" class="svg-title" font-size="14">Policy search</text>
+        <text x="486" y="357" class="svg-sub" font-size="10">FTS5 KEYWORDS + NOMIC EMBEDDINGS</text>
+        <text x="486" y="372" class="svg-label" font-size="10.5">merged by rank; sources shown under answers</text>
 
-        <!-- tool layer label -->
-        <text x="410" y="322" text-anchor="middle" class="svg-sub" font-size="10.5" letter-spacing="1">TOOL LAYER · FastMCP</text>
+        <rect x="470" y="390" width="320" height="62" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
+        <text x="486" y="413" class="svg-title" font-size="14">At-risk model</text>
+        <text x="486" y="429" class="svg-sub" font-size="10">LOGISTIC REGRESSION · PLAIN PYTHON</text>
+        <text x="486" y="444" class="svg-label" font-size="10.5">chance of withdrawing in 90 days, with reasons</text>
 
-        <!-- T1 retrieval -->
-        <rect x="40" y="338" width="220" height="80" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
-        <text x="150" y="362" text-anchor="middle" class="svg-title" font-size="14">Retrieval</text>
-        <text x="150" y="380" text-anchor="middle" class="svg-sub" font-size="10">ChromaDB + embeddings</text>
-        <text x="150" y="397" text-anchor="middle" class="svg-sub" font-size="10">+ cross-encoder rerank</text>
-        <text x="150" y="411" text-anchor="middle" class="svg-label" font-size="10.5">records &amp; policy docs</text>
+        <rect x="470" y="462" width="320" height="62" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
+        <text x="486" y="485" class="svg-title" font-size="14">Cooling leads</text>
+        <text x="486" y="501" class="svg-sub" font-size="10">RULE-BASED</text>
+        <text x="486" y="516" class="svg-label" font-size="10.5">showed interest, then quiet for 14-120 days</text>
 
-        <!-- T2 database -->
-        <rect x="300" y="338" width="220" height="80" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
-        <text x="410" y="366" text-anchor="middle" class="svg-title" font-size="14">CRM database</text>
-        <text x="410" y="385" text-anchor="middle" class="svg-sub" font-size="10">SQLite</text>
-        <text x="410" y="402" text-anchor="middle" class="svg-label" font-size="10.5">structured record lookups</text>
+        <!-- checks (fixed) -->
+        <line x1="190" y1="332" x2="190" y2="384" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
+        <rect x="40" y="386" width="300" height="84" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
+        <text x="190" y="410" text-anchor="middle" class="svg-title" font-size="15">Checks on the reply</text>
+        <text x="190" y="428" text-anchor="middle" class="svg-sub" font-size="10.5">PLAIN PYTHON · NO MODEL</text>
+        <text x="190" y="446" text-anchor="middle" class="svg-label" font-size="11">students looked up, not remembered;</text>
+        <text x="190" y="460" text-anchor="middle" class="svg-label" font-size="11">no false "saved"; numbers from the policy</text>
 
-        <!-- T3 at-risk -->
-        <rect x="560" y="338" width="220" height="80" rx="10" fill="#F3F7FA" stroke="#C9D6E2" stroke-width="1.5"/>
-        <text x="670" y="362" text-anchor="middle" class="svg-title" font-size="14">At-risk model</text>
-        <text x="670" y="380" text-anchor="middle" class="svg-sub" font-size="10">scikit-learn classifier</text>
-        <text x="670" y="397" text-anchor="middle" class="svg-label" font-size="10.5">predicts drop-out /</text>
-        <text x="670" y="411" text-anchor="middle" class="svg-label" font-size="10.5">cooling leads</text>
+        <!-- reply -->
+        <line x1="190" y1="470" x2="190" y2="550" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
+        <rect x="40" y="552" width="300" height="60" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
+        <text x="190" y="576" text-anchor="middle" class="svg-title" font-size="15">Reply with cards</text>
+        <text x="190" y="596" text-anchor="middle" class="svg-label" font-size="11">student · table · change to confirm · draft</text>
 
-        <!-- converge to response gen -->
-        <line x1="150" y1="418" x2="405" y2="470" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
-        <line x1="410" y1="418" x2="410" y2="470" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
-        <line x1="670" y1="418" x2="415" y2="470" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
+        <!-- the only write -->
+        <line x1="340" y1="582" x2="468" y2="582" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
+        <text x="404" y="574" text-anchor="middle" class="svg-label" font-size="10.5">staff click</text>
+        <text x="404" y="598" text-anchor="middle" class="svg-label" font-size="10.5">Confirm</text>
+        <rect x="470" y="552" width="320" height="60" rx="10" fill="#fff" stroke="#16324F" stroke-width="2.4"/>
+        <text x="630" y="576" text-anchor="middle" class="svg-title" font-size="15">The only write</text>
+        <text x="630" y="596" text-anchor="middle" class="svg-sub" font-size="10">CONFIRM ENDPOINT · REFUSED IF STALE · AUDITED</text>
 
-        <!-- D: response gen (smart) -->
-        <rect x="285" y="472" width="250" height="66" rx="10" fill="#F6E6D2" stroke="#DB8232" stroke-width="1.8"/>
-        <text x="410" y="498" text-anchor="middle" class="svg-title" font-size="15">Response generation</text>
-        <text x="410" y="516" text-anchor="middle" class="svg-sub" font-size="10.5">LLM · WRITES THE REPLY</text>
-        <text x="410" y="531" text-anchor="middle" class="svg-label" font-size="11.5">answer · summary · draft email</text>
+        <!-- dev-time -->
+        <rect x="40" y="660" width="360" height="78" rx="12" fill="#fff" stroke="#6B7E92" stroke-width="1.5" stroke-dasharray="6 5"/>
+        <text x="220" y="686" text-anchor="middle" class="svg-title" font-size="14">Evaluation harness</text>
+        <text x="220" y="704" text-anchor="middle" class="svg-sub" font-size="10">79 CASES · EXACT CHECKS + LLM JUDGE</text>
+        <text x="220" y="720" text-anchor="middle" class="svg-label" font-size="10.5">gate: 95%, every safety case, no writes</text>
 
-        <line x1="410" y1="538" x2="410" y2="572" stroke="#8FA3B6" stroke-width="1.5" marker-end="url(#arw)"/>
-
-        <!-- E: back to staff -->
-        <rect x="290" y="574" width="240" height="46" rx="10" fill="#fff" stroke="#16324F" stroke-width="1.5"/>
-        <text x="410" y="602" text-anchor="middle" class="svg-title" font-size="14">Reply to staff member</text>
-
-        <!-- write confirm note -->
-        <text x="548" y="602" class="svg-label" font-size="11">writes are confirmed by a human first</text>
-
-        <!-- eval harness -->
-        <rect x="150" y="672" width="520" height="70" rx="12" fill="#fff" stroke="#6B7E92" stroke-width="1.5" stroke-dasharray="6 5"/>
-        <text x="410" y="698" text-anchor="middle" class="svg-title" font-size="14">Evaluation harness</text>
-        <text x="410" y="716" text-anchor="middle" class="svg-sub" font-size="10.5">GOLDEN DATASET + LLM-AS-JUDGE</text>
-        <text x="410" y="731" text-anchor="middle" class="svg-label" font-size="11">development-time: validates the two LLM steps before release</text>
-
-        <line x1="300" y1="672" x2="360" y2="176" stroke="#B7C6D6" stroke-width="1.3" stroke-dasharray="4 4"/>
-        <line x1="360" y1="672" x2="380" y2="538" stroke="#B7C6D6" stroke-width="1.3" stroke-dasharray="4 4"/>
+        <rect x="420" y="660" width="370" height="78" rx="12" fill="#fff" stroke="#6B7E92" stroke-width="1.5" stroke-dasharray="6 5"/>
+        <text x="605" y="686" text-anchor="middle" class="svg-title" font-size="14">At-risk training</text>
+        <text x="605" y="704" text-anchor="middle" class="svg-sub" font-size="10">SCIKIT-LEARN · PAST ENROLMENTS</text>
+        <text x="605" y="720" text-anchor="middle" class="svg-label" font-size="10.5">checked by student and over time</text>
       </svg>
     </div>
 
@@ -162,13 +164,14 @@
 
     <h2>Component notes</h2>
     <div class="notes">
-      <div class="note"><span class="k">Smart edge · in</span><h3>Intent extraction</h3><p>The only place the model decides anything. A single constrained call, so it rarely goes wrong.</p></div>
-      <div class="note"><span class="k">Deterministic core</span><h3>Router</h3><p>Plain Python maps the intent to a function. No model here means no compounding errors.</p></div>
-      <div class="note"><span class="k">Tool layer</span><h3>Retrieval, database, model</h3><p>Exposed through FastMCP. Each does one job and returns data, not decisions.</p></div>
-      <div class="note"><span class="k">Smart edge · out</span><h3>Response generation</h3><p>Turns retrieved data into readable text. Just summarising, which the local model handles easily.</p></div>
-      <div class="note"><span class="k">Safety</span><h3>Human-confirmed writes</h3><p>Any change to a record is shown to staff to approve before it is saved.</p></div>
-      <div class="note"><span class="k">Trust</span><h3>Evaluation harness</h3><p>Scores the model steps against known-correct answers so accuracy is measured, not assumed.</p></div>
+      <div class="note"><span class="k">Entry point</span><h3>Staff server</h3><p>Signs staff in and attaches their name to every request, so the backend knows who asked and every save is logged against a person.</p></div>
+      <div class="note"><span class="k">Smart step</span><h3>Tool-calling agent</h3><p>The model decides which tools to call, at most five steps per request. It can't change a record: the most it can do is propose one.</p></div>
+      <div class="note"><span class="k">Tools</span><h3>Records, policies, predictions</h3><p>Each does one job and returns data. Risk scores come from a trained model, not the language model; ambiguous names come back as a question.</p></div>
+      <div class="note"><span class="k">Fixed step</span><h3>Checks on the reply</h3><p>Plain Python catches the mistakes testing found: naming a student nobody looked up, claiming a save that didn't happen, quoting a number the policy doesn't say.</p></div>
+      <div class="note"><span class="k">Safety</span><h3>The only write</h3><p>A change is saved only when staff click Confirm, and is refused if the record changed in the meantime. Email drafts are never sent.</p></div>
+      <div class="note"><span class="k">Trust</span><h3>Evaluation harness</h3><p>79 known-correct cases, run after every change to the prompt or tools, so accuracy is measured, not assumed.</p></div>
     </div>
+    <p class="intro" style="margin-top:20px">The July design had a fixed intent → router → reply pipeline with a FastMCP tool layer and ChromaDB retrieval. The technical design (document 2, section 10) lists what changed and why.</p>
 
     <hr>
     <footer>Architecture · CRM Assistant · Page 3 of the project doc set</footer>

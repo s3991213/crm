@@ -75,7 +75,7 @@
     <h1>CRM Assistant: Technical Design</h1>
     <div class="meta">
       <span>AUTHOR: NIPUNA TENNAKOON</span>
-      <span>STATUS: DRAFT</span>
+      <span>STATUS: DESIGN JUL · AS BUILT OCT</span>
       <span>2026</span>
       <span>TARGET: LOCAL, 24GB</span>
     </div>
@@ -88,6 +88,7 @@
       <h3>A constrained pipeline, not an autonomous agent</h3>
       <p>The obvious design is an agent that freely decides which tools to chain. Local models in the 14B range get unreliable at open-ended multi-step tool loops, and that unreliability compounds with every step. Instead, the language model is used only at the two edges where it is strong: understanding the request, and writing the reply. The decision-making in the middle is deterministic Python, not model reasoning. The tradeoff is less open-ended flexibility, bought back as reliability, explainability, and a system that actually runs well on the target hardware.</p>
     </div>
+    <p><strong>As built:</strong> the model got a little more room than planned (a tool-calling loop of at most five steps), and the safety this section wanted from a fixed pipeline is enforced in code around the loop instead. Section 10 lists every change from this design and why.</p>
 
     <h2><span class="n">03</span> Components</h2>
     <div class="comp"><span class="role">Application layer</span><h3>FastAPI</h3><p>Receives the staff request and returns the response. Thin entry point.</p></div>
@@ -135,6 +136,23 @@
     <div class="risk"><div class="r">No production data on day one</div><div class="m">Build against a mock schema; swap in the real one later.</div></div>
     <div class="risk"><div class="r">Wrong or unwanted record update</div><div class="m">Every write is confirmed by a human before it is saved.</div></div>
     <div class="risk"><div class="r">Memory pressure on 24GB</div><div class="m">14B model plus light embedding and rerank models stay within budget.</div></div>
+
+    <h2><span class="n">10</span> As built (October 2026)</h2>
+    <p>Sections 01-09 are the design as written in July. Building it changed some of it; the table gives the reason for each change.</p>
+    <table>
+      <tr><th>Design</th><th>Built</th><th>Why</th></tr>
+      <tr><td>One intent call, a Python router, one reply call</td><td>A tool-calling loop (Qwen3-14B, at most 5 steps, 7 tools that can only read or stage a change)</td><td>Chosen in the build plan, with safety enforced in code rather than by the pipeline's shape (next row). Follow-ups such as "change her status" after "find Sofia" need no extra routing rules. Whether the loop is reliable enough is measured, not assumed: Qwen3-14B passes the eval gate below.</td></tr>
+      <tr><td>Safety from the fixed pipeline and JSON schemas</td><td>Safety in code: tools can't write; one change per request; values checked against allowed lists; ambiguous names come back as a question; a reply naming a student no tool returned, claiming something was saved, or quoting a number the policy doesn't say is sent back to the model once, then replaced with a fixed true sentence</td><td>The value lists, name questions and fixed confirm wording were planned; the reply checks were each added after an eval or a browser test caught the model doing exactly that.</td></tr>
+      <tr><td>Human-confirmed writes</td><td>As designed: the only write is <code>POST /updates/{id}/confirm</code> after staff click Confirm. Refused if the record changed since or the proposal is over 60 minutes old; every save audited and logged with the staff name</td><td>-</td></tr>
+      <tr><td>FastMCP tool layer</td><td>Plain Python functions in the backend</td><td>One app calls the tools; a protocol layer added a moving part with no second client.</td></tr>
+      <tr><td>ChromaDB + sentence-transformers + cross-encoder reranker over records and policies</td><td>Policy search only: SQLite FTS5 keywords + nomic embeddings served by LM Studio, merged with weighted reciprocal-rank fusion; no reranker. Records are looked up by name, not searched</td><td>Hit@1 on the retrieval eval: keywords 59%, embeddings 78%, both 91%. With 10 policies a reranker had nothing left to fix, and nothing extra runs in memory.</td></tr>
+      <tr><td>At-risk: gradient boosting or logistic regression</td><td>Logistic regression on 4-weekly snapshots, scored in plain Python with readable reasons. Gradient boosting is measured alongside on every retrain</td><td>AUC 0.886 vs 0.838 for the old rule score (cross-validated by student); boosting reached 0.863. Synthetic data, so it shows the method, not real accuracy.</td></tr>
+      <tr><td>Cooling leads from the classifier</td><td>A plain rule: showed real interest, then quiet for 14-120 days</td><td>No won/lost history exists to learn from yet.</td></tr>
+      <tr><td>Mock schema: students, interactions, enrolments, documents</td><td>A synthetic college database on a MySQL schema (10 tables, 600 students, enquiries), imported into the assistant's SQLite</td><td>Modelled on what a CRICOS college must keep, so the swap to their real MySQL is a mapping, not a redesign.</td></tr>
+      <tr><td>Evals: golden set + LLM judge as a gate</td><td>As designed: 79 cases (typos, paraphrases, multi-turn, safety), exact checks plus an LLM judge for open-ended text; the gate is 95%, every safety and update case, and no writes</td><td>-</td></tr>
+      <tr><td>Fits in 24GB</td><td>Measured during a full eval run: 13.9 GB peak wired memory, no swap growth</td><td>-</td></tr>
+    </table>
+    <p>Not done yet: real records, running as a service with https and backups, and a judge model different from the one tested.</p>
 
     <hr>
     <footer>Technical Design · CRM Assistant · Page 2 of the project doc set</footer>
