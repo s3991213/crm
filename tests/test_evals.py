@@ -8,7 +8,7 @@ import yaml
 from evals.run import check, gate, judge
 
 CASES = yaml.safe_load((Path(__file__).parent.parent / "evals" / "cases.yaml").read_text())
-KEYS = {"type", "student", "tools", "not_tools", "update", "draft_to", "draft_to_not", "update_count_max", "text_has",
+KEYS = {"type", "student", "tools", "not_tools", "update", "draft_to", "draft_to_not", "draft_has", "update_count_max", "text_has",
         "no_saved_claim", "text_lacks", "sources"}
 
 
