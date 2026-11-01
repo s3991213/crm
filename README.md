@@ -21,14 +21,14 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 
 | What | Result | Where |
 |---|---|---|
-| Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 6.1 s, p95 15.8 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
+| Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 9.1 s, p95 24.0 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
 | Same at temperature 0.7, 3 runs (63 cases then) | 188/189 | `evals/results/qwen-qwen3-14b-t0.7.md` |
 | Same 79, judged by a different model (Qwen3.5 9B) | 77/79, gate passed. On the same 14 open-ended replies the 9B passed 11, the 14B passed all its own: one fair catch (a vague payment email), one made-up requirement, one nitpick | `evals/results/qwen-qwen3-14b-judge-qwen-qwen3.5-9b.md`, `evals/results/judges.md` |
 | Smaller model: Qwen3.5 9B on the same 79 | 58/79; 157/237 at temperature 0.7; gate not passed, 0 records written. Safe but hesitant: it asks "shall I stage this?" instead of staging (updates 4/11) | `evals/results/qwen-qwen3.5-9b*.md` |
 | Policy search: right section first, 32 questions | keyword 59%, meaning 78%, hybrid 91% | `evals/results/retrieval.md` |
 | At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
 | Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
-| Tests (no model needed) | 156 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
+| Tests (no model needed) | 157 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
 
 Every safety rule in "How the backend keeps the model safe" is enforced in code and has an eval case. The synthetic data was shaped by my own assumptions, so the at-risk numbers show the method works,
 not that it predicts real students.
@@ -43,7 +43,8 @@ The model chooses *which* tool to call. The code decides what each tool may do:
 - A name that matches several students, or none, comes back as a question, never a guess. A misspelt name gets a "did you mean …?" question. A change is only staged for a student staff have clearly named in the chat ("Priya" isn't enough when there are two).
 - If a reply mentions a student that no tool looked up in that request, the model is told to look them up, so it can't answer from memory.
 - The reply type comes from what the tools did, not what the model says. A confirm card always carries fixed wording, and a reply that claims something was saved or sent, when nothing was staged, is replaced.
-- Email drafts are addressed from the record, never by the model, and are never sent.
+- Email drafts are addressed from the record, never by the model, and are never sent. A draft is only made once the
+  model has read that person's history in the same request; the first try without it gets the record back instead.
 - Student notes are passed as data. The seed data contains a planted prompt injection, and an eval checks it's ignored.
 - Confirm refuses if the record changed after the change was staged (409). Every stage, confirm, cancel and conflict goes to an `audit` table.
 - Policy answers must come from the passages `search_policies` returned: a number in the reply (a fee, a number of days) that isn't in them, or in what staff typed, gets the model one nudge and then a fixed "I couldn't find that" reply. A question about telling someone other than the student (a parent, an agent) makes the model check the privacy policy first.
@@ -147,7 +148,8 @@ The bar for using a model or prompt (`--gate` exits with an error below it): 95%
 update case passes, and no record is written. The judge is the model under test unless `--judge-model` names
 another, so it can be lenient with its own mistakes. Judged by Qwen3.5 9B instead, the 14B still clears the gate (77/79).
 On the same replies the 9B judge is stricter: it caught one email draft the 14B had passed in itself (it left out
-which instalment was overdue and by how long), but also failed a correct summary for a requirement the rubric doesn't
+which instalment was overdue and by how long; the model had drafted without reading the record, which code now
+stops, and `draft_has` checks the facts exactly), but also failed a correct summary for a requirement the rubric doesn't
 have. Neither judge is the last word: read the disagreements (`python -m evals.judges`, `evals/results/judges.md`).
 
 Qwen3.5 ignores `/no_think`, so give it `--reasoning-effort none` (and `--judge-reasoning-effort none` as a judge),

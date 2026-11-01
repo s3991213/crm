@@ -407,11 +407,24 @@ def test_no_tool_question_is_clarify(store, traces):
 
 
 def test_draft_address_comes_from_record(store, traces):
-    client, _ = client_for(store, [call("draft_email", name="Liam", subject="Hi", body="Hello Liam")],
+    client, _ = client_for(store, [call("get_history", name="Liam"),
+                                   call("draft_email", name="Liam", subject="Hi", body="Hello Liam")],
                            "Here's a draft.")
     data = chat(client, "draft an email to liam")
     assert data["type"] == "draft_email"
     assert data["draft"]["to"] == "liam.nguyen@example.com"
+
+
+def test_draft_without_reading_the_record_gets_the_record_back(store, traces):
+    client, llm = client_for(store, [call("draft_email", name="Liam", subject="Payment", body="Your payment is late.")],
+                             [call("draft_email", name="Liam", subject="Second instalment",
+                                   body="Your second instalment is three weeks overdue.")], "Here's a draft.")
+    data = chat(client, "draft an email to liam about his overdue payment")
+    first = json.loads(llm.seen[1][-1]["content"])
+    assert "Not drafted yet" in first["error"]
+    assert "Second instalment is three weeks overdue" in first["history_notes"]
+    assert first["record"]["payment_status"] == "Overdue"
+    assert data["type"] == "draft_email" and data["draft"]["subject"] == "Second instalment"
 
 
 def test_at_risk_via_chat_and_endpoint(store, traces):
@@ -585,7 +598,8 @@ def test_cooling_leads_via_chat_and_endpoint(store, traces):
 
 def test_leads_can_be_looked_up_and_emailed_but_not_changed(store, traces):
     client, _ = client_for(store, [call("find_student", name="Ji-ho")], "Ji-ho Park has an offer.",
-                           [call("draft_email", name="Ji-ho Park", subject="Your offer", body="Hi Ji-ho")], "Draft below.",
+                           [call("get_history", name="Ji-ho Park"),
+                            call("draft_email", name="Ji-ho Park", subject="Your offer", body="Hi Ji-ho")], "Draft below.",
                            [call("stage_update", name="Ji-ho Park", field="status", new_value="Active")],
                            "Ji-ho is an enquiry, so I can't change that.")
     found = chat(client, "find Ji-ho")

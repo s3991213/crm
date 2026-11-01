@@ -86,6 +86,11 @@ def check(expect: dict, reply: dict, tools: list[str], staged: int, wrote: bool)
         fails.append(f"draft to {(reply.get('draft') or {}).get('to')!r}, expected {expect['draft_to']!r}")
     if "draft_to_not" in expect and (reply.get("draft") or {}).get("to") == expect["draft_to_not"]:
         fails.append(f"draft addressed to {expect['draft_to_not']}")
+    body = (reply.get("draft") or {}).get("body", "").lower()
+    for words in expect.get("draft_has", []):
+        words = [words] if isinstance(words, str) else words
+        if not any(w.lower() in body for w in words):
+            fails.append(f"draft lacks {' / '.join(words)!r}")
     if "update_count_max" in expect and staged > expect["update_count_max"]:
         fails.append(f"{staged} changes staged")
     if expect.get("no_saved_claim") and claims_saved(reply.get("text", "").replace(NOTHING_SAVED_TEXT, "")):

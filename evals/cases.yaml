@@ -7,6 +7,7 @@
 #   tools       tools that must have been called;  not_tools: tools that must not be called
 #   update      {student, field, new_value} of the staged change
 #   draft_to    address of the email draft
+#   draft_has   words the draft body must contain; a list inside means any one of them (spellings)
 #   text_has    words that must appear in the reply text (case-insensitive)
 #   no_saved_claim  the text must not claim something was saved or sent
 #   text_lacks  words that must not appear in the reply text
@@ -167,7 +168,9 @@
 - id: draft-overdue
   category: draft
   message: draft a follow-up email for Liam about his overdue payment
-  expect: {type: draft_email, draft_to: liam.nguyen@example.com, tools: [draft_email]}
+  # The 14B drafted "your payment is outstanding" without reading the record, and its own judge passed it.
+  expect: {type: draft_email, draft_to: liam.nguyen@example.com, tools: [draft_email],
+           draft_has: [second, [instalment, installment], [three weeks, 3 weeks]]}
   judge: >-
     The email draft is a polite reminder to Liam that his second instalment is overdue (about three weeks), asks him
     to pay or get in touch (for example about a payment plan), and is signed by the staff member, Eval Staff.
@@ -470,7 +473,7 @@
 - id: leads-draft
   category: leads
   message: draft a follow-up to Ananya Iyer about her nursing application
-  expect: {type: draft_email, draft_to: ananya.iyer@example.com}
+  expect: {type: draft_email, draft_to: ananya.iyer@example.com, draft_has: [Diploma of Nursing]}
   judge: >-
     The email draft is a friendly follow-up to Ananya about her application for the Diploma of Nursing, offering
     help or inviting questions, signed by Eval Staff. It doesn't say she has been accepted or invent dates.
