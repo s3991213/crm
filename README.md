@@ -21,14 +21,14 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 
 | What | Result | Where |
 |---|---|---|
-| Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 9.1 s, p95 24.0 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
+| Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 8.1 s, p95 24.3 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
 | Same at temperature 0.7, 3 runs (63 cases then) | 188/189 | `evals/results/qwen-qwen3-14b-t0.7.md` |
 | Same 79, judged by a different model (Qwen3.5 9B) | 77/79, gate passed. On the same 14 open-ended replies the 9B passed 11, the 14B passed all its own: one fair catch (a vague payment email), one made-up requirement, one nitpick | `evals/results/qwen-qwen3-14b-judge-qwen-qwen3.5-9b.md`, `evals/results/judges.md` |
 | Smaller model: Qwen3.5 9B on the same 79 | 58/79; 157/237 at temperature 0.7; gate not passed, 0 records written. Safe but hesitant: it asks "shall I stage this?" instead of staging (updates 4/11) | `evals/results/qwen-qwen3.5-9b*.md` |
-| Policy search: right section first, 32 questions | keyword 59%, meaning 78%, hybrid 91% | `evals/results/retrieval.md` |
+| Policy search: right section first, on 32 held-out questions (and the 32 it was tuned on) | keyword 41% (59%), meaning 59% (78%), hybrid 66% (91%), hybrid + 14B reranker 91% (91%), about 6 s more per policy question | `evals/results/retrieval.md` |
 | At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
 | Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
-| Tests (no model needed) | 157 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
+| Tests (no model needed) | 163 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
 
 Every safety rule in "How the backend keeps the model safe" is enforced in code and has an eval case. The synthetic data was shaped by my own assumptions, so the at-risk numbers show the method works,
 not that it predicts real students.
@@ -63,13 +63,30 @@ staff's own words. The model is given the whole best-matching policy plus the ot
 lists the sections it used. Embeddings are cached in `backend/data/policy-vectors.json`; without the embedding
 model the search falls back to keywords.
 
-`python -m evals.retrieval` measures the search on 32 staff questions (`evals/retrieval.yaml`); results are in
-`evals/results/retrieval.md`. On them: keyword alone puts the right section first 59% of the time, meaning alone 78%,
-both together 91%.
+A reranker (`backend/rerank.py`, `RERANKER`) then re-orders the best 10: by default the chat model ranks them in one
+call, reading each with the question. If it fails, the hybrid order stands.
 
-This differs from the design doc (ChromaDB, sentence-transformers, a cross-encoder reranker): with about 50 passages,
-SQLite and the embedding model LM Studio already serves give hybrid search with nothing extra to install or keep in
-memory. A reranker can be added if the policy set grows and the retrieval eval drops.
+`python -m evals.retrieval --rerankers llm,minilm,mxbai,bge` measures the search on two sets of staff questions:
+`evals/retrieval.yaml` (32, which the keyword weight was tuned on) and `evals/retrieval_holdout.yaml` (32 held out,
+never tuned on). Results are in `evals/results/retrieval.md`. Right section first:
+
+| Search | tuned set | held-out set | time per question |
+|---|---|---|---|
+| keyword | 59% | 41% | under 1 ms |
+| meaning | 78% | 59% | about 25 ms |
+| hybrid | 91% | 66% | about 25 ms |
+| hybrid + Qwen3 14B reranker (default) | 91% | 91% | about 6 s |
+| hybrid + MiniLM cross-encoder | 88% | 75% | about 70 ms |
+
+The held-out set shows the 91% on the tuned set flattered the hybrid search. Two bigger cross-encoders (mxbai xsmall,
+bge-reranker-base) did no better than MiniLM. With the 14B reranker the right *policy* comes first 94-100% of the
+time, and the assistant is given that whole policy. Shorter passages for the reranker didn't make it faster without
+making it worse. Questions about a parent asking for grades still miss: the privacy section isn't in the first
+search's top 10, so no reranker can lift it.
+
+This differs from the design doc (ChromaDB, sentence-transformers): with about 50 passages, SQLite and the embedding
+model LM Studio already serves are enough. The cross-encoders run with onnxruntime and tokenizers (optional:
+`pip install onnxruntime tokenizers`, model downloaded from Hugging Face on first use), not PyTorch.
 
 ## The college's student database (synthetic for now)
 
@@ -200,6 +217,7 @@ cp backend/.env.example backend/.env   # set LLM_MODEL to the id LM Studio shows
 | `LLM_API_KEY` | Only for hosted APIs |
 | `LLM_NO_THINK` | `1` (default) adds `/no_think` so Qwen3-style models skip hidden reasoning (several times faster) |
 | `LLM_REASONING_EFFORT` | `none` turns thinking off through the API, for models that ignore `/no_think` (Qwen3.5). Empty by default, since some hosted APIs reject it |
+| `RERANKER` | Policy search reranker: `llm` (default, the chat model, about 6 s per policy question), `minilm` (small cross-encoder, about 70 ms, needs `onnxruntime` and `tokenizers`) or `off` |
 
 The database is created and seeded from `backend/seed.json` on first run at `backend/data/crm.db`. Delete that file to reset it.
 

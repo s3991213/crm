@@ -8,7 +8,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from openai import AsyncOpenAI, OpenAIError
+from openai import NOT_GIVEN, AsyncOpenAI, OpenAIError
 
 THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
@@ -49,11 +49,12 @@ class OpenAICompatible:
         self.extra = {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=1)
 
-    async def complete(self, messages: list[dict], tools: list[dict]) -> Completion:
+    async def complete(self, messages: list[dict], tools: list[dict] | None) -> Completion:
         start = time.perf_counter()
         try:
             r = await self.client.chat.completions.create(
-                model=self.model, messages=messages, tools=tools, temperature=self.temperature, **self.extra,
+                model=self.model, messages=messages, tools=tools or NOT_GIVEN, temperature=self.temperature,
+                **self.extra,
             )
         except OpenAIError as exc:
             raise LLMError(str(exc)) from exc

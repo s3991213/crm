@@ -7,6 +7,8 @@ work more hours?"). If the embedding model is unavailable the keyword search sti
 
 Each section under a "##" heading is one passage. Embeddings are cached in a JSON file by the text's hash,
 so the policies are only re-embedded when they change. The policies are sample documents for a fictional college.
+
+Optionally a reranker (backend/rerank.py) then re-orders the hybrid search's best RERANK_TOP candidates.
 """
 
 import asyncio
@@ -25,6 +27,7 @@ CANDIDATES = 20  # how many each search passes to the fusion
 # The keyword ranking counts half as much as the meaning one: a weak keyword match ("what", "student") otherwise
 # pulls the wrong section up. Chosen on evals/retrieval.yaml (hit@1 81% -> 91%), so it may flatter that set.
 KEYWORD_WEIGHT = 0.5
+RERANK_TOP = 10  # how many of the hybrid search's best the reranker re-orders
 
 log = logging.getLogger("crm.policies")
 
@@ -65,8 +68,10 @@ def _cosine(a: list[float], b: list[float]) -> float:
 
 
 class PolicyIndex:
-    def __init__(self, embedder=None, folder: Path = FOLDER, cache: Path | None = None):
+    def __init__(self, embedder=None, folder: Path = FOLDER, cache: Path | None = None, reranker=None,
+                 rerank_top: int = RERANK_TOP):
         self.embedder, self.cache = embedder, cache
+        self.reranker, self.rerank_top = reranker, rerank_top
         self.passages = load_passages(folder)
         self.db = sqlite3.connect(":memory:", check_same_thread=False)
         self.db.execute("create virtual table fts using fts5(policy, section, text, tokenize='porter')")
@@ -150,5 +155,12 @@ class PolicyIndex:
         for weight, ranking in rankings:
             for rank, i in enumerate(ranking):
                 fused[i] = fused.get(i, 0) + weight / (RRF_K + rank + 1)
-        best = sorted(fused, key=lambda i: -fused[i])[:k]
-        return [self.passages[i] for i in best]
+        ranked = sorted(fused, key=lambda i: -fused[i])
+        if mode == "hybrid" and self.reranker and len(ranked) > 1:
+            top = ranked[:self.rerank_top]
+            try:
+                order = await self.reranker.rerank(query, [self.passages[i].for_embedding() for i in top])
+                ranked = [top[j] for j in order] + ranked[len(top):]
+            except Exception as exc:  # the hybrid order is still a good answer
+                log.warning("Reranking failed, using the hybrid order: %s", exc)
+        return [self.passages[i] for i in ranked[:k]]

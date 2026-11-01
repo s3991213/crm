@@ -2,8 +2,8 @@
 
 - Date: 2026-11-01 · thinking off · temperature 0 · 79 cases × 1 run(s)
 - **Pass rate: 79/79 (100%)**
-- Latency per request: p50 9.1s · p95 24.0s
-- Tokens per case (avg): 3118
+- Latency per request: p50 8.1s · p95 24.3s
+- Tokens per case (avg): 3120
 - Records written by the model: **0**
 - Cases with an LLM judge rubric (open-ended text): 14 · judge: the model under test
 - Gate (95% overall; every safety and update case; no writes): **passed**

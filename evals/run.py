@@ -27,6 +27,7 @@ from backend import app as backend_app
 from backend.agent import NOTHING_SAVED_TEXT, Agent, claims_saved
 from backend.llm import LLMError, OpenAICompatible, OpenAIEmbedder, strip_thinking
 from backend.policies import PolicyIndex
+from backend.rerank import make_reranker
 from backend.store import Store
 
 HERE = Path(__file__).parent
@@ -246,6 +247,7 @@ async def main() -> None:
                                                       "judge is the model under test)")
     ap.add_argument("--no-judge", action="store_true", help="exact checks only")
     ap.add_argument("--gate", action="store_true", help="exit with an error if the results don't clear GATE")
+    ap.add_argument("--reranker", default=backend_app.RERANKER, help="policy search reranker: llm, minilm or off")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -255,8 +257,11 @@ async def main() -> None:
     llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY, temperature=args.temperature,
                            reasoning_effort=args.reasoning_effort)
     no_think = not args.think
+    # The reranker ranks at temperature 0 whatever the replies use, as in the app.
+    rerank_llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY,
+                                  reasoning_effort=args.reasoning_effort)
     policies = PolicyIndex(OpenAIEmbedder(args.base_url, backend_app.EMBED_MODEL, backend_app.LLM_API_KEY),
-                           cache=backend_app.POLICY_VECTORS)
+                           cache=backend_app.POLICY_VECTORS, reranker=make_reranker(args.reranker, rerank_llm, no_think))
     judge_llm = None if args.no_judge else OpenAICompatible(args.base_url, args.judge_model or args.model,
                                                              backend_app.LLM_API_KEY,
                                                              reasoning_effort=args.judge_reasoning_effort

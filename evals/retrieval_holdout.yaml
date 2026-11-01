@@ -1,0 +1,68 @@
+# Held-out policy search questions: written after KEYWORD_WEIGHT was tuned on retrieval.yaml, and never used to tune
+# anything (the reranker included). Same format. Mostly sections retrieval.yaml doesn't ask about, plus rewordings
+# of its misses. If you tune on these, write a new held-out set.
+
+- q: Does the attendance rule apply to local students as well, or just visa holders?
+  want: Who this applies to
+- q: How many hours a week is a student-visa timetable?
+  want: Attendance requirement
+- q: He's annoyed with his trainer, should he go straight to a formal complaint?
+  want: Raising a concern informally
+- q: How does a student lodge an appeal against a result?
+  want: Making a formal complaint or appeal
+- q: Can she keep studying while her appeal is being looked at?
+  want: During the process
+- q: How long do we hold on to complaint files?
+  want: Records
+- q: Can he still get credit for a unit that started last week?
+  want: When to apply
+- q: If she gets credit for three units, does she pay less?
+  want: Effect on the course
+- q: What paperwork does a student need to put off their start date?
+  want: Applying for a deferral
+- q: Student says she's leaving the college, what's the first step?
+  want: Withdrawing from a course
+- q: What has to happen before an applicant's place is locked in?
+  want: Letter of offer
+- q: He wants to switch from business to IT here, how does that work?
+  want: Changing course
+- q: The college is shutting down the cookery course, what happens to the students' money?
+  want: If the college can't deliver the course
+- q: Someone rang claiming to be Liam, what should I ask before talking about his record?
+  want: Checking identity
+- q: Do we pass enrolment details on to the Department?
+  want: Sharing with government
+- q: Her date of birth is wrong in our system, can she get it fixed?
+  want: Correcting records
+- q: A 17-year-old wants to rent a flat with friends, is that allowed?
+  want: Students under 18
+- q: A student can't get into Moodle, who sorts that out?
+  want: Login and portal help
+- q: I'm worried about one of my students, he seems really down lately.
+  want: Referrals
+- q: What form does a student fill in to move to another provider?
+  want: Asking for a release letter
+- q: We said no to her transfer, can she challenge that?
+  want: If the request is refused
+- q: His course end date moved and his visa runs out first, what now?
+  want: Visa extensions and new visas
+- q: Can she keep coming to class while she waits for her new visa?
+  want: Bridging visas
+- q: There was a serious accident on campus, who do I tell?
+  want: Critical incidents
+- q: Can we give an agent his attendance report?
+  want: Education agents
+- q: Her dad keeps emailing asking how she's doing in class. What can I say?
+  want: Who can see a student's information
+- q: He's dropping out halfway through term two, will any fees come back to him?
+  want: Refunds when a student withdraws
+- q: How many months off can someone take altogether during their course?
+  want: How long a deferral can be
+- q: Can a student work full time over the summer holidays?
+  want: Working while studying
+- q: When do we send the first reminder about an unpaid instalment?
+  want: Late and overdue payments
+- q: Her insurance runs out next month, do we chase that?
+  want: Health cover
+- q: What English score does a diploma need?
+  want: Entry requirements

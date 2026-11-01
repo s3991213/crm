@@ -21,6 +21,7 @@ load_dotenv(HERE / ".env")
 from .agent import Agent  # noqa: E402
 from .llm import LLMError, OpenAICompatible, OpenAIEmbedder  # noqa: E402
 from .policies import PolicyIndex  # noqa: E402
+from .rerank import make_reranker  # noqa: E402
 from .store import Store, StoreError  # noqa: E402
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:1234/v1")
@@ -32,6 +33,9 @@ LLM_NO_THINK = os.getenv("LLM_NO_THINK", "1") == "1"
 LLM_REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT") or None
 # Policy search embeddings; without this model loaded the search falls back to keywords.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5")
+# Re-orders the policy search's best candidates (backend/rerank.py): "llm" (the chat model, about 6 s per policy
+# question, best on evals/results/retrieval.md), "minilm" (small cross-encoder, needs onnxruntime + tokenizers) or "off".
+RERANKER = os.getenv("RERANKER", "llm")
 DB_PATH = Path(os.getenv("CRM_DB", HERE / "data" / "crm.db"))
 POLICY_VECTORS = HERE / "data" / "policy-vectors.json"
 TRACE_FILE = Path(os.getenv("CRM_TRACES", HERE / "logs" / "traces.jsonl"))
@@ -109,7 +113,7 @@ def default_app() -> FastAPI:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     store = Store(DB_PATH)
     store.seed_if_empty(HERE / "seed.json", HERE / "seed_leads.json")
-    policies = PolicyIndex(OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY), cache=POLICY_VECTORS)
-    return create_app(store, OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, reasoning_effort=LLM_REASONING_EFFORT),
-                      no_think=LLM_NO_THINK,
-                      policies=policies)
+    llm = OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, reasoning_effort=LLM_REASONING_EFFORT)
+    policies = PolicyIndex(OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY), cache=POLICY_VECTORS,
+                           reranker=make_reranker(RERANKER, llm, LLM_NO_THINK))
+    return create_app(store, llm, no_think=LLM_NO_THINK, policies=policies)

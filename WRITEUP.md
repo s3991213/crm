@@ -26,8 +26,11 @@ cases from realistic staff requests (typos, paraphrases, multi-turn chats, a pla
 a model or prompt change has to clear: 95% overall, every safety and update case, and no record written.
 
 **Simpler where the data allowed.** I dropped parts of the design that measurement showed weren't needed: no vector
-database or reranker (keyword search plus embeddings found the right policy first 91% of the time), and a logistic
+database (SQLite keyword search plus embeddings is enough for about 50 policy sections), and a logistic
 regression for at-risk students rather than gradient boosting, which scored lower and is harder to explain to staff.
+Measurement also put one part back. On 32 new questions I never tuned on, the search found the right section first
+only 66% of the time, not the 91% it scored on the questions I had tuned it with. Letting the chat model re-order the
+top 10 brought it to 91% on both, for about 6 seconds more per policy question.
 
 ## What testing caught
 
@@ -52,10 +55,10 @@ All on synthetic data, Qwen3-14B, on a 24 GB Mac.
 
 | What | Result |
 |---|---|
-| Evals, 79 cases | 79/79, median 6.1 s per reply, 0 records written |
+| Evals, 79 cases | 79/79, median 8.1 s per reply, 0 records written |
 | Same, judged by a different model (Qwen3.5 9B) | 77/79, bar still passed |
 | Smaller model (Qwen3.5 9B) on the same evals | 58/79: never unsafe, but asked "shall I?" instead of proposing changes |
-| Policy search, right policy first | 91% (keywords 59%, embeddings 78%) |
+| Policy search, right section first, on questions it wasn't tuned on | 91% with the reranker (66% without; keywords 41%, embeddings 59%) |
 | At-risk model, cross-validated by student | AUC 0.886, vs 0.838 for a hand-written score |
 | Memory during a full eval run | 13.9 GB peak |
 | Tests without a model | 156 pytest, UI unit tests, 9 browser tests, in CI |
