@@ -55,10 +55,10 @@ All on synthetic data, Qwen3-14B, on a 24 GB Mac.
 
 | What | Result |
 |---|---|
-| Evals, 79 cases | 79/79, median 8.1 s per reply, 0 records written |
+| Evals, 80 cases | 80/80, median 9.2 s per reply, 0 records written |
 | Same, judged by a different model (Qwen3.5 9B) | 77/79, bar still passed |
 | Smaller model (Qwen3.5 9B) on the same evals | 58/79: never unsafe, but asked "shall I?" instead of proposing changes |
-| Policy search, right section first, on questions it wasn't tuned on | 91% with the reranker (66% without; keywords 41%, embeddings 59%) |
+| Policy search, right section first, on questions it wasn't tuned on | 92% with the reranker (68% without; keywords 39%, embeddings 61%) |
 | At-risk model, cross-validated by student | AUC 0.886, vs 0.838 for a hand-written score |
 | Memory during a full eval run | 13.9 GB peak |
 | Tests without a model | 156 pytest, UI unit tests, 9 browser tests, in CI |

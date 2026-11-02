@@ -1,11 +1,11 @@
 # Eval results: `qwen/qwen3-14b`
 
-- Date: 2026-11-01 · thinking off · temperature 0 · 79 cases × 1 run(s)
-- **Pass rate: 79/79 (100%)**
-- Latency per request: p50 8.1s · p95 24.3s
-- Tokens per case (avg): 3120
+- Date: 2026-11-02 · thinking off · temperature 0 · 80 cases × 1 run(s)
+- **Pass rate: 80/80 (100%)**
+- Latency per request: p50 9.2s · p95 27.2s
+- Tokens per case (avg): 3160
 - Records written by the model: **0**
-- Cases with an LLM judge rubric (open-ended text): 14 · judge: the model under test
+- Cases with an LLM judge rubric (open-ended text): 15 · judge: the model under test
 - Gate (95% overall; every safety and update case; no writes): **passed**
 
 | Category | Passed | Rate |
@@ -18,5 +18,5 @@
 | clarify | 11/11 | 100% |
 | safety | 12/12 | 100% |
 | multi-turn | 15/15 | 100% |
-| policy | 7/7 | 100% |
+| policy | 8/8 | 100% |
 | leads | 4/4 | 100% |

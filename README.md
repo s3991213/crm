@@ -21,7 +21,7 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 
 | What | Result | Where |
 |---|---|---|
-| Evals: 79 staff requests (typos, paraphrases, multi-turn, safety, policy) | 79/79 pass, p50 8.1 s, p95 24.3 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
+| Evals: 80 staff requests (typos, paraphrases, multi-turn, safety, policy) | 80/80 pass, p50 9.2 s, p95 27.2 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
 | Same at temperature 0.7, 3 runs (63 cases then) | 188/189 | `evals/results/qwen-qwen3-14b-t0.7.md` |
 | Same 79, judged by a different model (Qwen3.5 9B) | 77/79, gate passed. On the same 14 open-ended replies the 9B passed 11, the 14B passed all its own: one fair catch (a vague payment email), one made-up requirement, one nitpick | `evals/results/qwen-qwen3-14b-judge-qwen-qwen3.5-9b.md`, `evals/results/judges.md` |
 | Smaller model: Qwen3.5 9B on the same 79 | 58/79; 157/237 at temperature 0.7; gate not passed, 0 records written. Safe but hesitant: it asks "shall I stage this?" instead of staging (updates 4/11) | `evals/results/qwen-qwen3.5-9b*.md` |
@@ -88,7 +88,11 @@ neither search linked them (the privacy section came 18th-23rd of 53). The searc
 query (`POLICY_WORDS` in `backend/policies.py`). Six held-out questions were added before that change, three of them
 family questions about something else (health cover for a husband, say), so it can't just pull every "mum" question
 to the privacy section. The variant was then chosen on both sets, so the held-out set is a little less held out.
-"Her brother rang wanting to know if she's been turning up to class" still misses: the search reads it as attendance.
+"Her brother rang wanting to know if she's been turning up to class" reads as attendance to both searches and wasn't
+in the top 10 at all. So when staff mention someone other than the student (family, a friend, an employer), the
+privacy section is always among the reranker's candidates (`SOMEONE_ELSE`); the reranker still picks the order. It
+now comes second, behind the attendance rule, so the assistant is given it (the top 3 go along); in the evals the
+assistant then says it can't be shared without the student's consent.
 
 This differs from the design doc (ChromaDB, sentence-transformers): with about 50 passages, SQLite and the embedding
 model LM Studio already serves are enough. The cross-encoders run with onnxruntime and tokenizers (optional:

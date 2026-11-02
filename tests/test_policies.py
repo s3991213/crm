@@ -151,3 +151,21 @@ def test_everyday_words_get_the_policys_words():
 def test_family_question_finds_the_privacy_section_by_keyword():
     found = asyncio.run(PolicyIndex().search("her mum wants her grades", k=3, mode="keyword"))
     assert "Who can see a student's information" in sections(found)
+
+
+def test_someone_else_puts_the_privacy_section_among_the_reranker_candidates():
+    privacy = "Who can see a student's information"
+    question = "Her boss rang wanting to know if she's been turning up to class."
+    assert privacy not in sections(asyncio.run(PolicyIndex().search(question, k=4)))
+    reverse = Reverse()
+    found = sections(asyncio.run(PolicyIndex(reranker=reverse, rerank_top=4).search(question, k=20)))
+    assert len(reverse.got) == 4 and any(t.startswith(f"Privacy and Student Records Policy. {privacy}.")
+                                         for t in reverse.got)
+    assert found[0] == privacy  # Reverse put the added last candidate first
+    assert len(found) == len(set(found))
+
+
+def test_no_one_else_leaves_the_candidates_alone():
+    reverse = Reverse()
+    asyncio.run(PolicyIndex(reranker=reverse, rerank_top=4).search("is she turning up to class?"))
+    assert not any("Who can see a student's information" in t for t in reverse.got)

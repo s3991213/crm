@@ -428,6 +428,15 @@
     Staff shouldn't tell Liam's mother about his attendance unless Liam has given written consent (permission):
     a student's information is only given to the student.
 
+- id: policy-privacy-sibling
+  category: policy
+  message: Sofia's brother rang wanting to know if she's been turning up to class. What can I tell him?
+  expect: {type: answer, tools: [search_policies], update: null}
+  judge: >-
+    Staff shouldn't tell Sofia's brother about her attendance unless Sofia has given written consent (permission):
+    a student's information is only given to the student, not to family members. Explaining the attendance rules
+    instead is a fail.
+
 - id: policy-with-record
   category: policy
   message: Sofia's attendance is low. What does the policy say we should do?

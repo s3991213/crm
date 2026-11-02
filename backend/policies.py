@@ -33,11 +33,17 @@ RERANK_TOP = 10  # how many of the hybrid search's best the reranker re-orders
 # section 18th-23rd of 53. The policy's words are added to the query, so both searches see them. "parents family"
 # rather than the whole phrase: "or other" are noise words to the keyword search, and the whole phrase pulled family
 # questions about other things (an aunt as a carer, a father in hospital) to the privacy section.
+FAMILY = re.compile(r"\b(mum|mom|mother|dad|father|parents?|brother|sister|uncle|aunt|aunty|cousin|grand(ma|pa|"
+                    r"mother|father|parents?)|husband|wife|relatives?|family)\b", re.I)
 POLICY_WORDS = [
-    (re.compile(r"\b(mum|mom|mother|dad|father|parents?|brother|sister|uncle|aunt|aunty|cousin|grand(ma|pa|mother|"
-                r"father|parents?)|husband|wife|relatives?|family)\b", re.I), "parents family"),
+    (FAMILY, "parents family"),
     (re.compile(r"\b(grades?|marks|scores|report card|transcript)\b", re.I), "results"),
 ]
+# When staff mention someone other than the student, the section on who may be told things is always among the
+# reranker's candidates. "Her brother rang wanting to know if she's been turning up to class" reads as attendance to
+# both searches, so it never reached the top 10; the reranker still decides whether it comes first.
+PRIVACY_SECTION = "Who can see a student's information"
+SOMEONE_ELSE = re.compile(rf"{FAMILY.pattern}|\b(friends?|employers?|boss)\b", re.I)
 
 log = logging.getLogger("crm.policies")
 
@@ -89,7 +95,8 @@ class PolicyIndex:
         self.embedder, self.cache = embedder, cache
         self.reranker, self.rerank_top = reranker, rerank_top
         self.passages = load_passages(folder)
-        self.db = sqlite3.connect(":memory:", check_same_thread=False)
+        self.privacy = next((i for i, p in enumerate(self.passages) if p.section == PRIVACY_SECTION), None)
+        self.db =sqlite3.connect(":memory:", check_same_thread=False)
         self.db.execute("create virtual table fts using fts5(policy, section, text, tokenize='porter')")
         self.db.executemany("insert into fts (rowid, policy, section, text) values (?, ?, ?, ?)",
                             [(i, p.policy, p.section, p.text) for i, p in enumerate(self.passages)])
@@ -175,9 +182,11 @@ class PolicyIndex:
         ranked = sorted(fused, key=lambda i: -fused[i])
         if mode == "hybrid" and self.reranker and len(ranked) > 1:
             top = ranked[:self.rerank_top]
+            if self.privacy is not None and self.privacy not in top and SOMEONE_ELSE.search(query):
+                top = top[:self.rerank_top - 1] + [self.privacy]
             try:
                 order = await self.reranker.rerank(query, [self.passages[i].for_embedding() for i in top])
-                ranked = [top[j] for j in order] + ranked[len(top):]
+                ranked = [top[j] for j in order] + [i for i in ranked if i not in top]
             except Exception as exc:  # the hybrid order is still a good answer
                 log.warning("Reranking failed, using the hybrid order: %s", exc)
         return [self.passages[i] for i in ranked[:k]]

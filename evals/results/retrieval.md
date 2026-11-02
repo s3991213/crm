@@ -10,23 +10,23 @@ Two question sets: `retrieval.yaml` (32, which the keyword weight was tuned on) 
 |---|---|---|---|---|---|
 | keyword | 62% | 91% | 0.74 | 72% | 0 ms |
 | meaning | 78% | 91% | 0.84 | 84% | 18 ms |
-| hybrid | 91% | 94% | 0.93 | 94% | 26 ms |
-| hybrid + minilm | 91% | 94% | 0.94 | 91% | 73 ms |
-| hybrid + mxbai | 84% | 97% | 0.90 | 91% | 174 ms |
-| hybrid + bge | 81% | 97% | 0.88 | 91% | 252 ms |
-| hybrid + llm | 94% | 100% | 0.97 | 100% | 6195 ms |
+| hybrid | 91% | 94% | 0.93 | 94% | 28 ms |
+| hybrid + minilm | 91% | 94% | 0.94 | 91% | 71 ms |
+| hybrid + mxbai | 84% | 97% | 0.90 | 91% | 182 ms |
+| hybrid + bge | 81% | 97% | 0.88 | 91% | 286 ms |
+| hybrid + llm | 94% | 100% | 0.97 | 100% | 6045 ms |
 
 ## held-out (38 questions)
 
 | Search | hit@1 | hit@3 | MRR | policy@1 | time |
 |---|---|---|---|---|---|
 | keyword | 39% | 71% | 0.55 | 55% | 0 ms |
-| meaning | 61% | 87% | 0.75 | 71% | 24 ms |
-| hybrid | 68% | 87% | 0.78 | 76% | 24 ms |
-| hybrid + minilm | 76% | 92% | 0.83 | 84% | 76 ms |
-| hybrid + mxbai | 71% | 87% | 0.81 | 76% | 172 ms |
-| hybrid + bge | 61% | 92% | 0.76 | 76% | 254 ms |
-| hybrid + llm | 92% | 97% | 0.95 | 95% | 5111 ms |
+| meaning | 61% | 87% | 0.75 | 71% | 17 ms |
+| hybrid | 68% | 87% | 0.78 | 76% | 25 ms |
+| hybrid + minilm | 76% | 95% | 0.84 | 84% | 76 ms |
+| hybrid + mxbai | 71% | 87% | 0.82 | 76% | 185 ms |
+| hybrid + bge | 63% | 95% | 0.79 | 79% | 296 ms |
+| hybrid + llm | 92% | 100% | 0.96 | 95% | 5248 ms |
 
 ### Missed first place: hybrid
 
@@ -58,7 +58,7 @@ Two question sets: `retrieval.yaml` (32, which the keyword weight was tuned on) 
 - (held-out) Her date of birth is wrong in our system, can she get it fixed? → Checking identity (wanted Correcting records, rank 2)
 - (held-out) A student can't get into Moodle, who sorts that out? → Raising a concern informally (wanted Login and portal help, rank 3)
 - (held-out) His course end date moved and his visa runs out first, what now? → Health cover (wanted Visa extensions and new visas, rank 3)
-- (held-out) Her brother rang wanting to know if she's been turning up to class. → Students under 18 (wanted Who can see a student's information, rank None)
+- (held-out) Her brother rang wanting to know if she's been turning up to class. → Students under 18 (wanted Who can see a student's information, rank 3)
 - (held-out) Her husband is coming over on her visa, does she need health cover for him too? → Bridging visas (wanted Health cover, rank 2)
 
 ### Missed first place: hybrid + mxbai
@@ -76,7 +76,7 @@ Two question sets: `retrieval.yaml` (32, which the keyword weight was tuned on) 
 - (held-out) Can we give an agent his attendance report? → Reporting to the government (wanted Education agents, rank 4)
 - (held-out) Her dad keeps emailing asking how she's doing in class. What can I say? → Login and portal help (wanted Who can see a student's information, rank 8)
 - (held-out) Her insurance runs out next month, do we chase that? → Payment plans (wanted Health cover, rank 2)
-- (held-out) Her brother rang wanting to know if she's been turning up to class. → Attendance requirement (wanted Who can see a student's information, rank None)
+- (held-out) Her brother rang wanting to know if she's been turning up to class. → Attendance requirement (wanted Who can see a student's information, rank 4)
 - (held-out) Can I tell his wife what marks he got? → Entry requirements (wanted Who can see a student's information, rank 2)
 - (held-out) Her father wants a copy of her report card, is that allowed? → Medical certificates and approved absences (wanted Who can see a student's information, rank 2)
 
@@ -101,8 +101,7 @@ Two question sets: `retrieval.yaml` (32, which the keyword weight was tuned on) 
 - (held-out) A student can't get into Moodle, who sorts that out? → Raising a concern informally (wanted Login and portal help, rank 2)
 - (held-out) His course end date moved and his visa runs out first, what now? → Health cover (wanted Visa extensions and new visas, rank 2)
 - (held-out) Can a student work full time over the summer holidays? → Deferring a course (wanted Working while studying, rank 2)
-- (held-out) Her brother rang wanting to know if she's been turning up to class. → Students under 18 (wanted Who can see a student's information, rank None)
-- (held-out) Her husband is coming over on her visa, does she need health cover for him too? → Working while studying (wanted Health cover, rank 3)
+- (held-out) Her husband is coming over on her visa, does she need health cover for him too? → Keeping details up to date (wanted Health cover, rank 3)
 
 ### Missed first place: hybrid + llm
 
@@ -110,4 +109,4 @@ Two question sets: `retrieval.yaml` (32, which the keyword weight was tuned on) 
 - (tuned) Can I tell the agent about his attendance? → Who can see a student's information (wanted Education agents, rank 2)
 - (held-out) Can she keep studying while her appeal is being looked at? → Bridging visas (wanted During the process, rank 2)
 - (held-out) What paperwork does a student need to put off their start date? → Deferring a course (wanted Applying for a deferral, rank 2)
-- (held-out) Her brother rang wanting to know if she's been turning up to class. → Attendance requirement (wanted Who can see a student's information, rank None)
+- (held-out) Her brother rang wanting to know if she's been turning up to class. → Attendance requirement (wanted Who can see a student's information, rank 2)
