@@ -66,3 +66,17 @@
   want: Health cover
 - q: What English score does a diploma need?
   want: Entry requirements
+# Added 2026-11-02, written before the family-word fix and not tuned on. The last three name a family member but
+# aren't about sharing information, so a fix that drags every "mum" question to the privacy section fails them.
+- q: Her brother rang wanting to know if she's been turning up to class.
+  want: Who can see a student's information
+- q: Can I tell his wife what marks he got?
+  want: Who can see a student's information
+- q: Her father wants a copy of her report card, is that allowed?
+  want: Who can see a student's information
+- q: Her husband is coming over on her visa, does she need health cover for him too?
+  want: Health cover
+- q: Her parents are struggling to pay this term's instalment, can they spread it out?
+  want: Payment plans
+- q: She's 16 and her aunt wants her to stay with her, is that OK?
+  want: Students under 18

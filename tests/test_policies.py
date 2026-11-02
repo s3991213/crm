@@ -6,7 +6,7 @@ import re
 import pytest
 
 from backend.llm import Completion, LLMError
-from backend.policies import PolicyIndex, load_passages
+from backend.policies import PolicyIndex, load_passages, with_policy_words
 from backend.rerank import LLMReranker, make_reranker
 
 WORDS = ["work", "job", "shifts", "hours", "refund", "money", "back", "quit", "insurance", "cover", "mum", "parents"]
@@ -139,3 +139,15 @@ def test_make_reranker():
     assert isinstance(make_reranker("llm", Says("[1]")), LLMReranker)
     with pytest.raises(ValueError):
         make_reranker("best-one")
+
+
+def test_everyday_words_get_the_policys_words():
+    assert with_policy_words("her mum wants her grades") == "her mum wants her grades parents family results"
+    assert with_policy_words("Can his Grandmother see the transcript?").endswith("parents family results")
+    assert with_policy_words("what's the refund rule?") == "what's the refund rule?"
+    assert with_policy_words("he wants to mark it") == "he wants to mark it"  # "mark", not "marks"
+
+
+def test_family_question_finds_the_privacy_section_by_keyword():
+    found = asyncio.run(PolicyIndex().search("her mum wants her grades", k=3, mode="keyword"))
+    assert "Who can see a student's information" in sections(found)

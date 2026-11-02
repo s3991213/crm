@@ -28,6 +28,16 @@ CANDIDATES = 20  # how many each search passes to the fusion
 # pulls the wrong section up. Chosen on evals/retrieval.yaml (hit@1 81% -> 91%), so it may flatter that set.
 KEYWORD_WEIGHT = 0.5
 RERANK_TOP = 10  # how many of the hybrid search's best the reranker re-orders
+# Everyday words staff use where the policies use a formal one ("her mum wants her grades" vs "parents or other
+# family members", "results"). Neither search links them: no shared keyword, and the embedding ranked the privacy
+# section 18th-23rd of 53. The policy's words are added to the query, so both searches see them. "parents family"
+# rather than the whole phrase: "or other" are noise words to the keyword search, and the whole phrase pulled family
+# questions about other things (an aunt as a carer, a father in hospital) to the privacy section.
+POLICY_WORDS = [
+    (re.compile(r"\b(mum|mom|mother|dad|father|parents?|brother|sister|uncle|aunt|aunty|cousin|grand(ma|pa|mother|"
+                r"father|parents?)|husband|wife|relatives?|family)\b", re.I), "parents family"),
+    (re.compile(r"\b(grades?|marks|scores|report card|transcript)\b", re.I), "results"),
+]
 
 log = logging.getLogger("crm.policies")
 
@@ -60,6 +70,12 @@ def load_passages(folder: Path = FOLDER) -> list[Passage]:
             else:
                 lines.append(line)
     return out
+
+
+def with_policy_words(query: str) -> str:
+    """`query` plus the policies' word for any everyday word in it (POLICY_WORDS)."""
+    extra = [words for pattern, words in POLICY_WORDS if pattern.search(query)]
+    return " ".join([query, *extra])
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -146,6 +162,7 @@ class PolicyIndex:
 
     async def search(self, query: str, k: int = 3, mode: str = "hybrid") -> list[Passage]:
         """The `k` passages that best answer `query`. mode: hybrid, keyword or meaning (for the retrieval eval)."""
+        query = with_policy_words(query)
         rankings = []
         if mode in ("hybrid", "keyword"):
             rankings.append((KEYWORD_WEIGHT, self.keyword(query)))
