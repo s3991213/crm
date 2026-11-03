@@ -72,8 +72,10 @@ TOOLS = [
             "field": {"type": "string", "enum": list(EDITABLE)},
             "new_value": {"type": "string", "description":
                           "status: " + ", ".join(EDITABLE["status"]) + ". payment_status: "
-                          + ", ".join(EDITABLE["payment_status"]) + "."}},
-            "required": ["name", "field", "new_value"]}}},
+                          + ", ".join(EDITABLE["payment_status"]) + "."},
+            "staff_words": {"type": "string", "description":
+                            "Staff's own words that give the new value, copied exactly (like \"mark her as done\")"}},
+            "required": ["name", "field", "new_value", "staff_words"]}}},
     {"type": "function", "function": {
         "name": "search_policies",
         "description": "Search the college's policy documents (fees and refunds, attendance and progress, visas and "
@@ -146,6 +148,28 @@ THIRD_PARTY = re.compile(r"\b(mum|mom|mother|dad|father|parents?|family|brother|
                          r"partner|agent|employer|boss|friend)\b", re.I)
 PRIVACY_NUDGE = ("(Message from the CRM system, not from staff.) Staff are asking about someone other than the student. "
                  "Check the privacy policy with search_policies before answering.")
+# Words that say which record and field to change, not what the new value is: "change Arjun's payment status" gives
+# no value, so the 14B made one up (Overdue). Student names are left out separately.
+NOT_A_VALUE = set("""a an the to as of for in on and or so it its this that his her him he she they them their
+    i me my we us our you your can could would will please just also now new value field record details student
+    change changing update updating set setting mark make put edit modify switch fix adjust alter enter want need
+    should be is was status payment course email address""".split())
+WORD = re.compile(r"[a-z0-9@.'-]+")
+
+
+def words_of(text: str) -> list[str]:
+    return [w.strip(".'-")[:-2] if w.strip(".'-").endswith("'s") else w.strip(".'-")
+            for w in WORD.findall(text.lower().replace("’", "'"))]
+
+
+def value_typed(value: str, said: str) -> bool:
+    """Whether staff typed the value, or a word starting like it ("defer" for Deferred, "withdraw" for Withdrawn)."""
+    if value.lower() in said.lower():
+        return True
+    stem = value.lower()[:max(5, len(value) - 3)]
+    return " " not in value and any(w.startswith(stem) for w in words_of(said))
+
+
 NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 # Time spans staff mention ("5 weeks before", "three months"), worked out in days for the policy's day limits:
 # the 14B read "5 weeks (35 days)" as less than 28 days.
@@ -348,6 +372,25 @@ class Agent:
         return (any(part not in shared and typed(part) for part in parts)
                 or (" ".join(parts) not in others and all(typed(part) for part in parts)))
 
+    @staticmethod
+    def _value_not_given(student: dict, field_name: str, value: str, quoted: str, said: str) -> str | None:
+        """Why the new value can't be staged as one staff gave, or None if they gave it. Typed values count. Otherwise
+        staff must have said it in other words ("mark her as done"), which the model quotes: those words must be
+        ones staff typed, and say more than the student, the field and "change"."""
+        if not value or value_typed(value, said):
+            return None
+        typed = set(words_of(said))
+        quote = words_of(quoted)
+        made_up = [w for w in quote if w not in typed and w not in NOT_A_VALUE
+                   and not difflib.get_close_matches(w, typed, n=1, cutoff=0.8)]
+        names = set(words_of(student["name"]))
+        if quote and not made_up and set(quote) - NOT_A_VALUE - names:
+            return None
+        return ((f"Staff never typed {', '.join(repr(w) for w in made_up)}. " if made_up else "")
+                + f"Staff haven't said what {student['name']}'s {FIELD_LABELS.get(field_name, field_name).lower()} "
+                  "should be changed to, so nothing is staged. Never pick a value "
+                  "yourself: ask staff what the new value should be.")
+
     def _resolve(self, args: dict, reply: Reply, leads: bool = True) -> dict | str:
         """The one student (or, failing that, lead) `name` refers to, or an error for the model to turn into a
         question. A lead is marked with `lead: True`."""
@@ -442,6 +485,10 @@ class Agent:
             reply.needs_clarifying = True
             return {"error": f"Staff never typed '{new_value}'. Never make up an email address: "
                              "ask staff for the exact new address."}
+        unsaid = self._value_not_given(s, field_name, new_value, str(args.get("staff_words", "")), reply.said)
+        if unsaid:
+            reply.needs_clarifying = True
+            return {"error": unsaid}
         try:
             update = self.store.stage(s["id"], field_name, new_value, staff)
         except StoreError as exc:

@@ -223,6 +223,13 @@
   # Looking Arjun up first and asking "what should it be?" beside his card is fine; staging a guess is not.
   expect: {type: [clarify, answer], update: null}
 
+- id: multi-no-value
+  category: multi-turn
+  before: [find Arjun Patel]
+  message: can you update his payment status
+  # No value in either message: ask what it should be, never pick one.
+  expect: {type: [clarify, answer], update: null}
+
 - id: clarify-small-talk
   category: clarify
   message: hello!

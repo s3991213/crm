@@ -235,6 +235,32 @@ def test_typed_email_is_staged_even_from_an_earlier_turn(store, traces):
     assert chat(client, "it's for Mei Chen")["update"]["new_value"] == "Mei@Chen.net"
 
 
+def test_value_staff_never_gave_is_refused(store, traces):
+    # Seen with the 14B: "change Arjun's payment status" staged Overdue every time.
+    client, llm = client_for(store, [call("stage_update", name="Arjun Patel", field="payment_status",
+                                          new_value="Overdue", staff_words="change Arjun's payment status")],
+                             "What should Arjun's payment status be?")
+    data = chat(client, "change Arjun's payment status")
+    assert data["type"] == "clarify" and "update" not in data
+    assert "Never pick a value" in json.loads(llm.seen[1][-1]["content"])["error"]
+    assert store.db.execute("select count(*) from pending_updates").fetchone()[0] == 0
+
+
+def test_value_quoted_from_words_staff_never_typed_is_refused(store, traces):
+    client, llm = client_for(store, [call("stage_update", name="Arjun Patel", field="payment_status",
+                                          new_value="Overdue", staff_words="it's overdue")], "What should it be?")
+    assert "update" not in chat(client, "update Arjun's payment")
+    assert "never typed 'overdue'" in json.loads(llm.seen[1][-1]["content"])["error"]
+
+
+def test_value_given_in_other_words_is_staged(store, traces):
+    client, _ = client_for(store, [call("stage_update", name="Mei Chen", field="status", new_value="Completed",
+                                        staff_words="mark her as done")], "",
+                           [call("stage_update", name="Sofia", field="status", new_value="Deferred")], "")
+    assert chat(client, "Mei finished last week, can you mark her as done")["update"]["new_value"] == "Completed"
+    assert chat(client, "Sofia has decided to defer, update her", session="s2")["update"]["new_value"] == "Deferred"
+
+
 def test_change_needs_a_student_staff_clearly_named(store, traces):
     # Seen in the browser: after the at-risk list, "Priya" was taken to mean Priya Kapoor.
     client, llm = client_for(store, [call("stage_update", name="Priya Kapoor", field="status", new_value="Deferred")],
