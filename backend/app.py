@@ -20,6 +20,7 @@ load_dotenv(HERE / ".env")
 
 from .agent import Agent  # noqa: E402
 from .llm import LLMError, OpenAICompatible, OpenAIEmbedder  # noqa: E402
+from .notes import NoteSearch  # noqa: E402
 from .policies import PolicyIndex  # noqa: E402
 from .rerank import make_reranker  # noqa: E402
 from .store import Store, StoreError  # noqa: E402
@@ -31,7 +32,8 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "not-needed")
 LLM_NO_THINK = os.getenv("LLM_NO_THINK", "1") == "1"
 # Qwen3.5 ignores /no_think; LLM_REASONING_EFFORT=none turns its thinking off through the API instead.
 LLM_REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT") or None
-# Policy search embeddings; without this model loaded the search falls back to keywords.
+# Embeddings for the policy and notes searches; without this model the policy search falls back to keywords
+# and the notes search is unavailable.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5")
 # Re-orders the policy search's best candidates (backend/rerank.py): "llm" (the chat model, about 6 s per policy
 # question, best on evals/results/retrieval.md), "minilm" (small cross-encoder, needs onnxruntime + tokenizers) or "off".
@@ -43,9 +45,10 @@ TRACE_FILE = Path(os.getenv("CRM_TRACES", HERE / "logs" / "traces.jsonl"))
 log = logging.getLogger("crm.backend")
 
 
-def create_app(store: Store, llm, no_think: bool = False, policies: PolicyIndex | None = None) -> FastAPI:
+def create_app(store: Store, llm, no_think: bool = False, policies: PolicyIndex | None = None,
+               notes: NoteSearch | None = None) -> FastAPI:
     app = FastAPI(title="CRM Assistant")
-    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies)
+    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies, notes=notes)
     app.state.store, app.state.agent = store, agent
 
     class ChatIn(BaseModel):
@@ -114,6 +117,7 @@ def default_app() -> FastAPI:
     store = Store(DB_PATH)
     store.seed_if_empty(HERE / "seed.json", HERE / "seed_leads.json")
     llm = OpenAICompatible(LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, reasoning_effort=LLM_REASONING_EFFORT)
-    policies = PolicyIndex(OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY), cache=POLICY_VECTORS,
-                           reranker=make_reranker(RERANKER, llm, LLM_NO_THINK))
-    return create_app(store, llm, no_think=LLM_NO_THINK, policies=policies)
+    embedder = OpenAIEmbedder(LLM_BASE_URL, EMBED_MODEL, LLM_API_KEY)
+    policies = PolicyIndex(embedder, cache=POLICY_VECTORS, reranker=make_reranker(RERANKER, llm, LLM_NO_THINK))
+    return create_app(store, llm, no_think=LLM_NO_THINK, policies=policies,
+                      notes=NoteSearch(store, embedder, llm, LLM_NO_THINK))

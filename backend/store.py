@@ -8,6 +8,7 @@ import difflib
 import json
 import sqlite3
 import uuid
+from array import array
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -49,6 +50,9 @@ create table if not exists leads (
 );
 create table if not exists conversations (
     session_id text primary key, messages text not null, updated_at text not null
+);
+create table if not exists note_vectors (
+    key text not null, model text not null, vector blob not null, primary key (key, model)
 );
 """
 
@@ -257,6 +261,22 @@ class Store:
             "insert into audit (at, staff, action, student_id, field, old_value, new_value) values (?, ?, ?, ?, ?, ?, ?)",
             (self.now().isoformat(timespec="seconds"), staff, action, student_id, field, old, new),
         )
+
+    # --- note embeddings (for backend/notes.py; personal data, like the notes) --
+
+    def note_vectors(self, model: str, keys: list[str]) -> dict[str, list[float]]:
+        out = {}
+        for start in range(0, len(keys), 500):
+            batch = keys[start:start + 500]
+            rows = self.db.execute(f"select key, vector from note_vectors where model = ? and key in "
+                                   f"({','.join('?' * len(batch))})", (model, *batch))
+            out |= {k: array("f", v).tolist() for k, v in rows}
+        return out
+
+    def save_note_vectors(self, model: str, vectors: dict[str, list[float]]) -> None:
+        self.db.executemany("insert or replace into note_vectors values (?, ?, ?)",
+                            [(k, model, array("f", v).tobytes()) for k, v in vectors.items()])
+        self.db.commit()
 
     # --- chat memory (not student records) --------------------------------
 

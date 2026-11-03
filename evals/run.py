@@ -26,6 +26,7 @@ import yaml
 from backend import app as backend_app
 from backend.agent import NOTHING_SAVED_TEXT, Agent, claims_saved
 from backend.llm import LLMError, OpenAICompatible, OpenAIEmbedder, strip_thinking
+from backend.notes import NoteSearch
 from backend.policies import PolicyIndex
 from backend.rerank import make_reranker
 from backend.store import Store
@@ -153,11 +154,14 @@ def gate(flat: list[dict]) -> list[str]:
     return out
 
 
-async def run_case(case: dict, llm, no_think: bool, judge_llm=None, policies: PolicyIndex | None = None) -> dict:
+async def run_case(case: dict, llm, no_think: bool, judge_llm=None, policies: PolicyIndex | None = None,
+                   notes=None) -> dict:
+    """`notes`: makes the case's NoteSearch from its store (each case has a fresh one)."""
     store = Store(":memory:", today=lambda: TODAY)
     store.seed_if_empty(backend_app.HERE / "seed.json", backend_app.HERE / "seed_leads.json")
     before = json.dumps(store.all_students(), sort_keys=True)
-    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies)
+    agent = Agent(store, llm, system_suffix="\n/no_think" if no_think else "", policies=policies,
+                  notes=notes(store) if notes else None)
     start = time.perf_counter()
     try:
         for msg in case.get("before", []):
@@ -257,11 +261,13 @@ async def main() -> None:
     llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY, temperature=args.temperature,
                            reasoning_effort=args.reasoning_effort)
     no_think = not args.think
-    # The reranker ranks at temperature 0 whatever the replies use, as in the app.
+    # The reranker and the notes search judge at temperature 0 whatever the replies use, as in the app.
     rerank_llm = OpenAICompatible(args.base_url, args.model, backend_app.LLM_API_KEY,
                                   reasoning_effort=args.reasoning_effort)
-    policies = PolicyIndex(OpenAIEmbedder(args.base_url, backend_app.EMBED_MODEL, backend_app.LLM_API_KEY),
-                           cache=backend_app.POLICY_VECTORS, reranker=make_reranker(args.reranker, rerank_llm, no_think))
+    embedder = OpenAIEmbedder(args.base_url, backend_app.EMBED_MODEL, backend_app.LLM_API_KEY)
+    policies = PolicyIndex(embedder, cache=backend_app.POLICY_VECTORS,
+                           reranker=make_reranker(args.reranker, rerank_llm, no_think))
+    notes = lambda store: NoteSearch(store, embedder, rerank_llm, no_think)  # noqa: E731
     judge_llm = None if args.no_judge else OpenAICompatible(args.base_url, args.judge_model or args.model,
                                                              backend_app.LLM_API_KEY,
                                                              reasoning_effort=args.judge_reasoning_effort
@@ -272,7 +278,7 @@ async def main() -> None:
     for i in range(args.repeat):
         run = []
         for case in cases:
-            r = await run_case(case, llm, no_think, judge_llm, policies)
+            r = await run_case(case, llm, no_think, judge_llm, policies, notes)
             run.append(r)
             mark = "PASS" if r["pass"] else "FAIL"
             print(f"[{i + 1}/{args.repeat}] {mark} {r['ms'] / 1000:5.1f}s {case['id']:32} {'; '.join(r['fails'])}")

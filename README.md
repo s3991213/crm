@@ -21,15 +21,15 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 
 | What | Result | Where |
 |---|---|---|
-| Evals: 80 staff requests (typos, paraphrases, multi-turn, safety, policy) | 80/80 pass, p50 9.2 s, p95 27.2 s, 0 records written; gate passed | `evals/results/qwen-qwen3-14b.md` |
+| Evals: 86 staff requests (typos, paraphrases, multi-turn, safety, policy, notes search) | 84/86 pass, p50 8.5 s, p95 25.6 s, 0 records written; gate passed. Since search_notes was added, it stages a guessed value for "change Arjun's payment status" | `evals/results/qwen-qwen3-14b.md` |
 | Same at temperature 0.7, 3 runs (63 cases then) | 188/189 | `evals/results/qwen-qwen3-14b-t0.7.md` |
 | Same 79, judged by a different model (Qwen3.5 9B) | 77/79, gate passed. On the same 14 open-ended replies the 9B passed 11, the 14B passed all its own: one fair catch (a vague payment email), one made-up requirement, one nitpick | `evals/results/qwen-qwen3-14b-judge-qwen-qwen3.5-9b.md`, `evals/results/judges.md` |
 | Smaller model: Qwen3.5 9B on the same 79 | 58/79; 157/237 at temperature 0.7; gate not passed, 0 records written. Safe but hesitant: it asks "shall I stage this?" instead of staging (updates 4/11) | `evals/results/qwen-qwen3.5-9b*.md` |
 | Policy search: right section first, on 38 held-out questions (and the 32 it was tuned on) | keyword 39% (62%), meaning 61% (78%), hybrid 68% (91%), hybrid + 14B reranker 92% (94%), about 6 s more per policy question | `evals/results/retrieval.md` |
-| Student notes search (not built yet): right student first, on 15 held-out questions (and 20 tuned) | keyword 40% (35%) and meaning 67% (65%) by note; meaning on the question and the 14B's phrase, then the 14B picks students from the top 20 with the notes around each match: 87% (90%), lists 59% (82%) of the right students, says "nobody" for 4/4 questions with no answer, about 4 s | `evals/results/notes-retrieval*.md` |
+| Student notes search: right student first, on 15 held-out questions (and 20 tuned) | keyword 40% (35%) and meaning 67% (65%) by note; meaning on the question and the 14B's phrase, then the 14B picks students from the top 20 with the notes around each match: 87% (90%), lists 59% (82%) of the right students, says "nobody" for 4/4 questions with no answer, about 4 s | `evals/results/notes-retrieval*.md` |
 | At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
 | Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
-| Tests (no model needed) | 170 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
+| Tests (no model needed) | 179 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
 
 Every safety rule in "How the backend keeps the model safe" is enforced in code and has an eval case. The synthetic data was shaped by my own assumptions, so the at-risk numbers show the method works,
 not that it predicts real students.
@@ -38,7 +38,7 @@ not that it predicts real students.
 
 The model chooses *which* tool to call. The code decides what each tool may do:
 
-- Seven tools: `find_student`, `get_history`, `list_at_risk`, `list_cooling_leads`, `stage_update`, `draft_email`, `search_policies`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
+- Eight tools: `find_student`, `get_history`, `list_at_risk`, `list_cooling_leads`, `stage_update`, `draft_email`, `search_policies`, `search_notes`. None of them writes to a record. `stage_update` only proposes a change; `POST /updates/{id}/confirm` is the only write.
 - Fields and values are checked against allowed lists. A new email address must be one staff actually typed.
 - One change per request: if the model tries a second, neither is staged and staff are asked.
 - A name that matches several students, or none, comes back as a question, never a guess. A misspelt name gets a "did you mean …?" question. A change is only staged for a student staff have clearly named in the chat ("Priya" isn't enough when there are two).
@@ -46,7 +46,7 @@ The model chooses *which* tool to call. The code decides what each tool may do:
 - The reply type comes from what the tools did, not what the model says. A confirm card always carries fixed wording, and a reply that claims something was saved or sent, when nothing was staged, is replaced.
 - Email drafts are addressed from the record, never by the model, and are never sent. A draft is only made once the
   model has read that person's history in the same request; the first try without it gets the record back instead.
-- Student notes are passed as data. The seed data contains a planted prompt injection, and an eval checks it's ignored.
+- Student notes are passed as data, also when `search_notes` returns them. The seed data contains a planted prompt injection, and evals check it's ignored (from a lookup and from a notes search).
 - Confirm refuses if the record changed after the change was staged (409). Every stage, confirm, cancel and conflict goes to an `audit` table.
 - Policy answers must come from the passages `search_policies` returned: a number in the reply (a fee, a number of days) that isn't in them, or in what staff typed, gets the model one nudge and then a fixed "I couldn't find that" reply. A question about telling someone other than the student (a parent, an agent) makes the model check the privacy policy first.
 - Each request is traced to `backend/logs/traces.jsonl`: model, LLM calls (ms, tokens), tool calls (args, ok, ms).
@@ -98,6 +98,33 @@ assistant then says it can't be shared without the student's consent.
 This differs from the design doc (ChromaDB, sentence-transformers): with about 50 passages, SQLite and the embedding
 model LM Studio already serves are enough. The cross-encoders run with onnxruntime and tokenizers (optional:
 `pip install onnxruntime tokenizers`, model downloaded from Hugging Face on first use), not PyTorch.
+
+## Searching student notes
+
+"Who mentioned a part-time job?" or "anyone having trouble with housing?" goes to `search_notes` (`backend/notes.py`):
+1. Every student's history is split into notes (one per line). Each different note text is embedded once with the
+   same embedding model as the policy search; the vectors are kept in `crm.db` (`note_vectors`), so they're in its
+   backup. They are personal data, like the notes.
+2. Both what staff typed and the phrase the model chose are searched by meaning, and the closest 20 students are
+   taken, each by their closest note.
+3. The chat model reads each of those students' matching note with the notes just before and after it (a follow-up
+   like "Sent him the complaints form." only makes sense next to the note before), and lists the students the notes
+   clearly answer, or none.
+4. The agent gets up to 10 students with their notes, marked as data, and is told to say what each note says in its
+   own words. It can't change anything.
+
+Measured first, on hand-written notes in staff wording among the generator's routine ones (`evals/notes.yaml`,
+`python -m evals.notes_retrieval --agent --rerank`): keyword search found the right note first 35-40% of the time,
+meaning search 65-67%. No similarity score separates "nobody" from a real match, so the chat model decides. On 15
+held-out questions it puts a right student first 87% of the time and says "nobody" for all 4 questions with no answer,
+but lists only 59% of the right students, and about a quarter of the students it lists are loose matches (a sick
+parent for "lost a family member"). That's why staff see each student's note, not just a name. About 4 s per search.
+A prompt asking the model to quote each student's words was tried for precision and was worse and slower.
+
+The design said sqlite-vec. Identical sentences share a vector, so the 600-student data (8,300 notes) has about 1,600
+vectors and a plain scan takes about 0.4 s next to the 4 s model call; sqlite-vec is the upgrade if real notes make it
+slow. The first notes search after an import embeds every note text once (about a minute on that data); after that
+only new notes are embedded.
 
 ## The college's student database (synthetic for now)
 
