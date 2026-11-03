@@ -26,10 +26,10 @@ All on synthetic data (600 students, `college_db/`) and Qwen3-14B in LM Studio o
 | Same 79, judged by a different model (Qwen3.5 9B) | 77/79, gate passed. On the same 14 open-ended replies the 9B passed 11, the 14B passed all its own: one fair catch (a vague payment email), one made-up requirement, one nitpick | `evals/results/qwen-qwen3-14b-judge-qwen-qwen3.5-9b.md`, `evals/results/judges.md` |
 | Smaller model: Qwen3.5 9B on the same 79 | 58/79; 157/237 at temperature 0.7; gate not passed, 0 records written. Safe but hesitant: it asks "shall I stage this?" instead of staging (updates 4/11) | `evals/results/qwen-qwen3.5-9b*.md` |
 | Policy search: right section first, on 38 held-out questions (and the 32 it was tuned on) | keyword 39% (62%), meaning 61% (78%), hybrid 68% (91%), hybrid + 14B reranker 92% (94%), about 6 s more per policy question | `evals/results/retrieval.md` |
-| Student notes search (not built yet): right note first, on 15 held-out questions (and 20 tuned) | keyword 40% (35%), meaning 67% (65%); meaning + the 14B reading the top 20 80% (85%), said "nobody" for 4/4 questions with no answer, about 3 s; but it lists only about half the right notes | `evals/results/notes-retrieval*.md` |
+| Student notes search (not built yet): right student first, on 15 held-out questions (and 20 tuned) | keyword 40% (35%) and meaning 67% (65%) by note; meaning on the question and the 14B's phrase, then the 14B picks students from the top 20 with the notes around each match: 87% (90%), lists 59% (82%) of the right students, says "nobody" for 4/4 questions with no answer, about 4 s | `evals/results/notes-retrieval*.md` |
 | At-risk model, cross-validated by student | AUC 0.886 (old rule score 0.838, gradient boosting 0.863); half of withdrawals caught at the flag line | `evals/results/risk-model.md` |
 | Memory during a full eval run | 13.9 GB peak wired, no swap growth | `evals/results/memory.md` |
-| Tests (no model needed) | 169 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
+| Tests (no model needed) | 170 pytest, vitest, 9 Playwright browser tests, in CI | `.github/workflows/ci.yml` |
 
 Every safety rule in "How the backend keeps the model safe" is enforced in code and has an eval case. The synthetic data was shaped by my own assumptions, so the at-risk numbers show the method works,
 not that it predicts real students.

@@ -105,3 +105,12 @@ def test_note_judge_reads_a_list_and_allows_none():
     texts = ["a", "b", "c"]
     assert asyncio.run(judge(Fake("[3, 1, 3, 9]"), "q", texts)) == [2, 0]  # repeats and out-of-range dropped
     assert asyncio.run(judge(Fake("None of them. []"), "q", texts)) == []
+
+
+def test_notes_by_student_show_the_notes_around_a_match():
+    from evals.notes_retrieval import NoteIndex, student_of, with_neighbours
+
+    index = NoteIndex({"ivan-1": "Complained about the trainer.", "ivan-2": "Sent him the form.", "bg-0": "Paid."}, None)
+    assert student_of("ivan-2") == "ivan" and student_of("bg-0") == "bg-0"
+    assert with_neighbours(index, "ivan-2") == "Complained about the trainer. | Sent him the form."
+    assert with_neighbours(index, "bg-0") == "Paid."
