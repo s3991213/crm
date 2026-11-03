@@ -1,0 +1,198 @@
+# Student notes search eval: does a question like "who mentioned a part-time job?" find the right notes?
+# Run: python -m evals.notes_retrieval   (needs the embedding model in LM Studio)
+#
+# The generated notes (college_db/generate.py) come from a few fixed sentences, so every part-time job is "Has
+# started a part-time job in hospitality." and a keyword search can't miss. These notes are written the way staff
+# write instead: shorthand, everyday words, the same thing said in different ways. They're mixed into the generator's
+# routine notes (offers, orientation, payments), with every generated sentence that could answer a question left out,
+# so the labels below are the only right answers. Written by me, so they carry my idea of how staff write.
+#
+# Each note's id is the student's first name and its number. A question's `want` is every note that answers it;
+# `none` questions have no answer at all (to see whether a score cut-off could say "nobody").
+
+students:
+  Aiko Tanaka:
+    - Attended orientation.
+    - Picked up weekend shifts at a ramen place in Haymarket.
+    - Said she's finding the trainer's accent hard to follow in class, asked if there are slides.
+    - Updated mobile number.
+  Bilal Hussain:
+    - Rang to say he can't pay the term 3 instalment on time, his dad's business in Lahore has gone under.
+    - Agreed he'll pay $500 a fortnight until the balance is cleared.
+    - Asked about the work limits on the student visa.
+  Camila Rojas:
+    - Doing Uber Eats in the evenings, says that's why she's so tired in morning classes.
+    - Late three times this week, trains on the T1 line.
+    - Asked for a copy of her timetable.
+  Dev Patel:
+    - Looked really down today, told me he hasn't been sleeping. Gave him the counselling service details.
+    - Missed the Tuesday assessment, says he forgot.
+    - Followed up, he's seen the counsellor twice and seems brighter.
+  Emre Yilmaz:
+    - Lease ended and the new place fell through, staying on a mate's couch for now.
+    - Asked if we know of any cheap rooms near campus.
+    - Collected student card.
+  Fatima Al-Sayed:
+    - Pregnant, due in April. Wants to know her options for finishing the course.
+    - Talked through deferring from March, she'll think about it.
+  Gabriel Souza:
+    - Grandmother passed away in Brazil, flying home for the funeral next week.
+    - Back from Brazil, catching up on the two units he missed.
+  Hana Kim:
+    - Laptop was stolen from her car. Lent her one of the library loan laptops.
+    - Can't get into the student portal, reset her password.
+  Ivan Petrov:
+    - Complained that the trainer for BSB50120 keeps cancelling classes at short notice.
+    - Sent him the complaints form.
+  Jia Hui Lim:
+    - Mum has cancer back in Malaysia, wants to go home for a few months.
+    - Explained the deferral rules and what it means for her CoE.
+  Kofi Mensah:
+    - Working as a kitchen hand at a pub in Parramatta, Thurs-Sun nights.
+    - Asked if he can do more than 48 hrs a fortnight over the break.
+  Lucia Bianchi:
+    - Thinking about switching to TAFE because it's cheaper.
+    - Asked how the release letter works.
+  Minh Tran:
+    - Got a call from someone claiming to be Home Affairs asking for money to fix his visa. Told him it's a scam and not to pay.
+    - Visa runs out in December, he's applying for a new one.
+  Nadia Haddad:
+    - Fell off her bike and broke her wrist. Can't type for 6 weeks, arranged verbal assessments.
+    - Med cert received for 12-25 Aug.
+  Oscar Lindqvist:
+    - Very homesick, says he cries most nights and is thinking of going back to Sweden.
+    - Introduced him to the international student club.
+  Priyanka Rao:
+    - Two young kids, childcare pick-up at 3 clashes with the afternoon class. Moved her to the morning group.
+    - Paid term 2 in full.
+  Quang Le:
+    - Short on money this month after sending most of his pay to family in Vietnam.
+    - Barista at a cafe in Cabramatta, about 20 hours a week.
+  Rania Aziz:
+    - Struggling with the written assessments, her English isn't strong enough yet. Booked her into the study skills workshop.
+    - Asked about moving to the evening timetable.
+  Sven Andersen:
+    - Top mark in the class for the marketing project, trainer has nominated him for the student award.
+  Tariq Mahmood:
+    - Landlord is selling the house, has to be out by the end of the month and hasn't found anywhere yet.
+    - Rent went up $80 a week, worried about covering it.
+  Uma Krishnan:
+    - Dad had a heart attack in Chennai, she's very distressed. Approved 2 weeks compassionate leave.
+    - Asked whether she can do her assessments online from India.
+  Viktor Novak:
+    - Car broke down, couldn't get to campus Monday.
+    - Got a speeding fine, asked if it affects his visa.
+  Wen Zhang:
+    - Her boss has offered her a full-time position, she's considering dropping out of the course.
+    - Explained that withdrawing gets reported and can affect her visa.
+  Ximena Torres:
+    - Says the others in her group leave her out and make comments about her accent. Very upset.
+    - Spoke to the trainer about changing the groups.
+  Yusuf Demir:
+    - Asked about scholarships for next year.
+    - Wants to transfer from Commercial Cookery to the Diploma of Hospitality Management.
+  Zara Ahmed:
+    - Gets panic attacks before exams, asked for a quiet room for assessments. Approved.
+    - Asked for an enrolment letter for her bank.
+  Arjun Singh:
+    - Cleans offices three nights a week through an agency.
+    - Phone was nicked on the train, can't do the 2FA code for the portal.
+  Beatriz Costa:
+    - Her husband has just arrived on a dependant visa, asked about his work rights.
+    - Asked for the bank details to pay term 3.
+  Chen Wei:
+    - Hasn't replied to three emails or two calls about his attendance.
+    - A classmate says he's gone back to China, nothing official from him.
+  Daniela Ruiz:
+    - Wants a refund for the textbook pack, says she never got it.
+    - Found the box at reception, she's collected it.
+  Elif Kaya:
+    - Starts her nursing placement at Westmead in October, needs a police check and vaccination records.
+    - Vaccination records uploaded.
+  Felipe Moreno:
+    - Friend's wedding back in Colombia in January, wants 3 weeks off mid-term.
+    - Told him holidays mid-term won't be approved, he'll go in the break instead.
+  Gita Sharma:
+    - Was in a minor accident on the M4, not hurt but the car's a write-off.
+    - Needs to find another way to get to the Penrith campus.
+
+# Nothing will be tuned on `held_out`; any later tuning uses `tuned` only.
+tuned:
+  - q: Who mentioned a part-time job?
+    want: [aiko-2, camila-1, kofi-1, quang-2, arjun-1, wen-1]
+  - q: Which students are having money troubles?
+    want: [bilal-1, bilal-2, quang-1, tariq-2]
+  - q: Anyone been really stressed or anxious lately?
+    want: [dev-1, dev-3, zara-1, uma-1, oscar-1, ximena-1]
+  - q: Who's had trouble finding somewhere to live?
+    want: [emre-1, emre-2, tariq-1]
+  - q: Has anyone lost a family member?
+    want: [gabriel-1]
+  - q: Who's thinking about leaving for another college?
+    want: [lucia-1, lucia-2]
+  - q: Who's been injured?
+    want: [nadia-1]
+  - q: Which students have children or a baby on the way?
+    want: [fatima-1, priyanka-1]
+  - q: Who's finding the English in class hard?
+    want: [rania-1, aiko-3]
+  - q: Any complaints about the trainers?
+    want: [ivan-1, ivan-2]
+  - q: Who had something stolen?
+    want: [hana-1, arjun-2]
+  - q: Has anyone been targeted by a scam?
+    want: [minh-1]
+  - q: Which students have a parent who is sick back home?
+    want: [jia-1, uma-1]
+  - q: Who's had transport problems getting to class?
+    want: [camila-2, viktor-1, gita-1, gita-2]
+  - q: Who wants to change course?
+    want: [yusuf-2]
+  - q: Who hasn't been answering us?
+    want: [chen-1]
+  - q: Anyone with a placement coming up?
+    want: [elif-1, elif-2]
+  - q: Who wants time off to travel?
+    want: [felipe-1, felipe-2]
+  - q: Which students are doing really well?
+    want: [sven-1]
+  - q: Is anyone being picked on by classmates?
+    want: [ximena-1, ximena-2]
+
+held_out:
+  - q: Who's doing food delivery?
+    want: [camila-1]
+  - q: Any students who are homesick?
+    want: [oscar-1, oscar-2]
+  - q: Who's worried about rent?
+    want: [tariq-2]
+  - q: Which students might drop out?
+    want: [wen-1, oscar-1, chen-2, lucia-1, lucia-2]
+  - q: Who works in a kitchen or a cafe?
+    want: [aiko-2, kofi-1, quang-2]
+  - q: Who's had a family emergency overseas?
+    want: [gabriel-1, jia-1, uma-1]
+  - q: Who needed special arrangements for exams?
+    want: [zara-1, nadia-1]
+  - q: Anyone with visa worries?
+    want: [minh-1, minh-2, viktor-2, beatriz-1, wen-2]
+  - q: Who has their partner here with them?
+    want: [beatriz-1]
+  - q: Who couldn't log in to the online systems?
+    want: [hana-2, arjun-2]
+  - q: Is anyone in trouble with the police?
+    want: [viktor-2]
+  - q: Who had a crash?
+    want: [gita-1]
+  - q: Who's sending money home?
+    want: [quang-1]
+  - q: Anyone seeing the counsellor?
+    want: [dev-1, dev-3]
+  - q: Who's missed classes for a medical reason?
+    want: [nadia-1, nadia-2]
+
+none:
+  - Who's getting married?
+  - Who mentioned joining the army?
+  - Has anyone been arrested?
+  - Which students have a dog?

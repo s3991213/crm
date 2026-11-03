@@ -77,3 +77,31 @@ def test_judge_reads_a_json_verdict():
     assert asyncio.run(judge(FakeJudge('{"pass": false, "reason": "omits the "second instalment""}'), case, reply,
                              False)) == 'judge: omits the "second instalment'
 
+
+
+def test_note_questions_point_at_real_notes():
+    from evals.notes_retrieval import ANSWERS, load
+
+    notes, sets = load()
+    for name in ("tuned", "held_out"):
+        for case in sets[name]:
+            assert case["want"] and set(case["want"]) <= set(notes), case["q"]
+    assert sets["none"]
+    # the background must not contain sentences that would answer a question
+    assert ANSWERS.search("Has started a part-time job in hospitality.")
+
+
+def test_note_judge_reads_a_list_and_allows_none():
+    from backend.llm import Completion
+    from evals.notes_retrieval import judge
+
+    class Fake:
+        def __init__(self, text):
+            self.text = text
+
+        async def complete(self, messages, tools):
+            return Completion(content=self.text)
+
+    texts = ["a", "b", "c"]
+    assert asyncio.run(judge(Fake("[3, 1, 3, 9]"), "q", texts)) == [2, 0]  # repeats and out-of-range dropped
+    assert asyncio.run(judge(Fake("None of them. []"), "q", texts)) == []
