@@ -625,7 +625,8 @@ def test_cooling_leads_via_chat_and_endpoint(store, traces):
 def test_leads_can_be_looked_up_and_emailed_but_not_changed(store, traces):
     client, _ = client_for(store, [call("find_student", name="Ji-ho")], "Ji-ho Park has an offer.",
                            [call("get_history", name="Ji-ho Park"),
-                            call("draft_email", name="Ji-ho Park", subject="Your offer", body="Hi Ji-ho")], "Draft below.",
+                            call("draft_email", name="Ji-ho Park", subject="Your offer",
+                                 body="Hi Ji-ho, your offer for the Diploma of Business is ready.")], "Draft below.",
                            [call("stage_update", name="Ji-ho Park", field="status", new_value="Active")],
                            "Ji-ho is an enquiry, so I can't change that.")
     found = chat(client, "find Ji-ho")
@@ -634,6 +635,32 @@ def test_leads_can_be_looked_up_and_emailed_but_not_changed(store, traces):
     refused = chat(client, "set Ji-ho Park's status to Active")
     assert refused["type"] == "clarify" and "update" not in refused
     assert store.db.execute("select count(*) from pending_updates").fetchone()[0] == 0
+
+
+def test_lead_lookup_gives_the_stage_on_its_own(store, traces):
+    client, llm = client_for(store, [call("find_student", name="Ji-ho")], "Ji-ho Park has an offer.")
+    chat(client, "find Ji-ho")
+    found = json.loads(llm.seen[1][-1]["content"])
+    assert found["stage"] == "Offer sent" and found["course"] == "Diploma of Business"
+
+
+def test_lead_draft_must_name_the_course(store, traces):
+    client, llm = client_for(store, [call("get_history", name="Ananya Iyer"),
+                                     call("draft_email", name="Ananya Iyer", subject="Hi",
+                                          body="Following up on your nursing application.")],
+                             [call("draft_email", name="Ananya Iyer", subject="Hi",
+                                   body="Following up on your Diploma of Nursing enquiry.")], "Draft below.")
+    data = chat(client, "draft Ananya a follow-up")
+    sent_back = json.loads(llm.seen[1][-1]["content"])
+    assert "Diploma of Nursing" in sent_back["error"]
+    assert data["type"] == "draft_email" and "Diploma of Nursing" in data["draft"]["body"]
+
+
+def test_lead_draft_is_sent_back_only_once(store, traces):
+    vague = call("draft_email", name="Ananya Iyer", subject="Hi", body="Following up on your application.")
+    client, _ = client_for(store, [call("get_history", name="Ananya Iyer"), vague], [vague], "Draft below.")
+    data = chat(client, "draft Ananya a follow-up")
+    assert data["type"] == "draft_email" and data["draft"]["body"] == "Following up on your application."
 
 
 def test_record_facts_are_not_mistaken_for_save_claims():
